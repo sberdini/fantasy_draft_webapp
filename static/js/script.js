@@ -1,5 +1,5 @@
 //const socket = io();
-const socket = io('https://BrajLeagueDraft.onrender.com', { transports: ['websocket'] });
+const socket = io('https://brajleaguedraft.onrender.com', { transports: ['websocket'] });
 let myTeam = null;
 let timerInterval = null;
 
