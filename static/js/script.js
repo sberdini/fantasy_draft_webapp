@@ -1,5 +1,6 @@
+const socket = io('https://your-project-id.uc.r.appspot.com', { transports: ['websocket'] });
 //const socket = io();
-const socket = io('https://brajleaguedraft.onrender.com', { transports: ['websocket'] });
+
 let myTeam = null;
 let timerInterval = null;
 

@@ -1,5 +1,5 @@
-import gevent
-gevent.monkey_patch()  # Must be first!
+import eventlet
+eventlet.monkey_patch()  # Must be first!
 
 import os
 import time
@@ -8,7 +8,7 @@ from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
-socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins="*")
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 
 # Updated players list with bye weeks (from previous)
 players = [
@@ -287,7 +287,7 @@ draft_state = {
     "current_pick": 0,
     "num_rounds": 15,
     "started": False,
-    "paused": False,  # Added for pause feature
+    "paused": False,
     "turn_start_time": None,
     "draft_history": [],
 }
@@ -338,7 +338,6 @@ def index():
 
 @socketio.on('join')
 def handle_join(data):
-    print('Join event:', data)  # Debug log
     if data.get('is_spectator'):
         session['is_spectator'] = True
         emit('update_draft', draft_state)
