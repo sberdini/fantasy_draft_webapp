@@ -1,11 +1,12 @@
+import eventlet
+eventlet.monkey_patch()  # Must be first!
+
 import os
 from flask import Flask, render_template, request, session, jsonify
 from flask_socketio import SocketIO, emit
-import eventlet
-eventlet.monkey_patch()  # Required for SocketIO
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Replace with a secure key
+app.secret_key = 'your_secret_key'
 socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 
 # Updated players list with bye weeks (from previous)
@@ -285,7 +286,7 @@ draft_state = {
     "current_pick": 0,
     "num_rounds": 15,
     "started": False,
-    "paused": False,
+    "paused": False,  # Added for pause feature
     "turn_start_time": None,
     "draft_history": [],
 }
@@ -296,45 +297,12 @@ def get_current_order():
     else:
         return draft_state["teams"][::-1]
 
-def advance_to_next_open_pick():
-    num_teams = len(draft_state["teams"])
-    while draft_state["current_round"] <= draft_state["num_rounds"]:
-        order = get_current_order()
-        team = order[draft_state["current_pick"]]
-        if any(p["round"] == draft_state["current_round"] and p["team"] == team for p in draft_state["draft_history"]):
-            draft_state["current_pick"] += 1
-            if draft_state["current_pick"] >= num_teams:
-                draft_state["current_round"] += 1
-                draft_state["current_pick"] = 0
-        else:
-            return
-    draft_state["started"] = False
-    draft_state["turn_start_time"] = None
-    draft_state["current_round"] = draft_state["num_rounds"] + 1
-    draft_state["current_pick"] = 0
-
-def reverse_to_previous_open_pick():
-    num_teams = len(draft_state["teams"])
-    while draft_state["current_round"] >= 1:
-        order = get_current_order()
-        team = order[draft_state["current_pick"]]
-        if any(p["round"] == draft_state["current_round"] and p["team"] == team for p in draft_state["draft_history"]):
-            draft_state["current_pick"] -= 1
-            if draft_state["current_pick"] < 0:
-                draft_state["current_round"] -= 1
-                draft_state["current_pick"] = num_teams - 1
-        else:
-            return
-    draft_state["current_round"] = 1
-    draft_state["current_pick"] = 0
-
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @socketio.on('join')
 def handle_join(data):
-    print('Join event:', data)  # Debug log
     if data.get('is_spectator'):
         session['is_spectator'] = True
         emit('update_draft', draft_state)
@@ -367,6 +335,7 @@ def handle_join(data):
 def handle_reorder_teams(data):
     new_order = data['new_order']
     if 'is_admin' in session and session['is_admin'] and not draft_state["started"]:
+        # Validate new_order is a permutation of current teams
         if sorted(new_order) == sorted(draft_state["teams"]):
             draft_state["teams"] = new_order
             emit('update_draft', draft_state, broadcast=True)
@@ -379,17 +348,22 @@ def handle_assign_pick(data):
         round_num = data['round']
         player = next((p for p in draft_state["available_players"] if p['name'] == player_name), None)
         if player and team in draft_state["rosters"] and 1 <= round_num <= draft_state["num_rounds"]:
+            # Calculate overall_pick assuming pick_in_round based on team's position in order
             pick_in_round = draft_state["teams"].index(team) + 1 if round_num % 2 == 1 else len(draft_state["teams"]) - draft_state["teams"].index(team)
             overall_pick = (round_num - 1) * len(draft_state["teams"]) + pick_in_round
+            # Check if spot is empty
             if not any(p["round"] == round_num and p["team"] == team for p in draft_state["draft_history"]):
                 draft_state["available_players"].remove(player)
                 draft_state["rosters"][team].append(player)
+                
+                # Add to history
                 draft_state["draft_history"].append({
                     "round": round_num,
                     "overall_pick": overall_pick,
                     "team": team,
                     "player": player
                 })
+                # Sort history by overall_pick
                 draft_state["draft_history"].sort(key=lambda x: x["overall_pick"])
                 emit('update_draft', draft_state, broadcast=True)
             else:
@@ -417,10 +391,15 @@ def handle_revert():
         last_pick = draft_state["draft_history"].pop()
         player = last_pick["player"]
         team = last_pick["team"]
-        draft_state["rosters"][team].pop()
-        draft_state["available_players"].append(player)
+        draft_state["rosters"][team].pop()  # Remove from roster
+        draft_state["available_players"].append(player)  # Restore to available
+        # Reverse advance to previous open pick
+        draft_state["current_pick"] -= 1
+        if draft_state["current_pick"] < 0:
+            draft_state["current_round"] -= 1
+            draft_state["current_pick"] = len(draft_state["teams"]) - 1
         reverse_to_previous_open_pick()
-        draft_state["turn_start_time"] = time.time()
+        draft_state["turn_start_time"] = time.time()  # Reset timer
         emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('admin_make_pick')
@@ -429,12 +408,14 @@ def handle_admin_pick(data):
         current_order = get_current_order()
         current_team = current_order[draft_state["current_pick"]]
         if data['for_team']:
-            current_team = data['for_team']
+            current_team = data['for_team']  # Override for admin
         player_name = data['player']
         player = next((p for p in draft_state["available_players"] if p['name'] == player_name), None)
         if player:
             draft_state["available_players"].remove(player)
             draft_state["rosters"][current_team].append(player)
+            
+            # Add to history
             overall_pick = ((draft_state["current_round"] - 1) * len(draft_state["teams"])) + draft_state["current_pick"] + 1
             draft_state["draft_history"].append({
                 "round": draft_state["current_round"],
@@ -442,12 +423,19 @@ def handle_admin_pick(data):
                 "team": current_team,
                 "player": player
             })
+            
+            # Advance to next open pick
+            draft_state["current_pick"] += 1
+            if draft_state["current_pick"] >= len(draft_state["teams"]):
+                draft_state["current_round"] += 1
+                draft_state["current_pick"] = 0
             advance_to_next_open_pick()
             if draft_state["current_round"] > draft_state["num_rounds"]:
                 draft_state["started"] = False
                 draft_state["turn_start_time"] = None
             else:
                 draft_state["turn_start_time"] = time.time()
+            
             emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('make_pick')
@@ -457,12 +445,15 @@ def handle_pick(data):
     current_order = get_current_order()
     current_team = current_order[draft_state["current_pick"]]
     if session['team'] != current_team:
-        return
+        return  # Not your turn
+
     player_name = data['player']
     player = next((p for p in draft_state["available_players"] if p['name'] == player_name), None)
     if player:
         draft_state["available_players"].remove(player)
         draft_state["rosters"][current_team].append(player)
+        
+        # Add to draft history
         overall_pick = ((draft_state["current_round"] - 1) * len(draft_state["teams"])) + draft_state["current_pick"] + 1
         draft_state["draft_history"].append({
             "round": draft_state["current_round"],
@@ -470,12 +461,19 @@ def handle_pick(data):
             "team": current_team,
             "player": player
         })
+        
+        # Advance to next open pick
+        draft_state["current_pick"] += 1
+        if draft_state["current_pick"] >= len(draft_state["teams"]):
+            draft_state["current_round"] += 1
+            draft_state["current_pick"] = 0
         advance_to_next_open_pick()
         if draft_state["current_round"] > draft_state["num_rounds"]:
-            draft_state["started"] = False
+            draft_state["started"] = False  # Draft over
             draft_state["turn_start_time"] = None
         else:
             draft_state["turn_start_time"] = time.time()
+        
         emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('connect')
