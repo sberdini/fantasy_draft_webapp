@@ -1,0 +1,122 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #121212; /* Dark background for modern look */
+    color: #ffffff; /* White text for contrast */
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+h1 {
+    text-align: center;
+    color: #4CAF50; /* Green accent for football theme */
+    font-family: 'Impact', sans-serif; /* Bold, sporty font */
+    text-transform: uppercase;
+}
+
+#join-section {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+#draft-board {
+    display: flex;
+    flex-direction: column;
+}
+
+select, input, button {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #4CAF50;
+    border-radius: 5px;
+    padding: 10px;
+    margin: 5px 0;
+}
+
+button {
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #4CAF50; /* Green hover for buttons */
+}
+
+#live-view, #board-view {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+#timer {
+    color: #FFEB3B; /* Yellow for timer, like clock on ESPN */
+    font-weight: bold;
+}
+
+#rosters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+#rosters div {
+    background-color: #333;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+#draft-grid {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    background-image: linear-gradient(to bottom, #fff, #fff); /* Green field gradient */
+    color: #0b0b0b;
+}
+
+#draft-grid th, #draft-grid td {
+    border: 1px solid #040404; /* White borders for visibility */
+    padding: 8px;
+    text-align: left;
+    min-width: 150px;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+#draft-grid th {
+    text-align: center;
+    background-color: #ffffffbd; /* Dark green for headers */
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+#board-view {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* Position color-coding (ESPN-inspired) */
+.pos-wr { background-color: #90ee90; color: #000; } /* Green */
+.pos-qb { background-color: #ffcccc; color: #000; } /* Red */
+.pos-rb { background-color: #add8e6; color: #000; } /* Blue */
+.pos-te { background-color: #ffd580; color: #000; } /* Orange */
+.pos-k { background-color: #d8bfd8; color: #000; } /* Purple */
+.pos-dst { background-color: #d3d3d3; color: #000; } /* Grey */
+
+/* Modern hover effects */
+#draft-grid td:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s;
+}
+
+#player-select option {
+    background-color: #333;
+    color: #fff;
+}
+
+/* Highlight current open pick */
+.current-pick-highlight { background-color: yellow !important; color: black; font-weight: bold; }

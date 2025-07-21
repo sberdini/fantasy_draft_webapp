@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fantasy Draft App</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>Braj league Live Draft</h1>
+    
+    <div id="join-section">
+        <label>Join as:</label>
+        <input type="radio" id="team-radio" name="join-type" value="team" checked>
+        <label for="team-radio">Team</label>
+        <input type="radio" id="admin-radio" name="join-type" value="admin">
+        <label for="admin-radio">Admin</label>
+        <input type="radio" id="spectator-radio" name="join-type" value="spectator">
+        <label for="spectator-radio">Spectator</label><br>
+        <label id="team-label" style="display: block;">Team Name (optional for admin):</label>
+        <input id="team-name" type="text" style="display: block;">
+        <button onclick="joinDraft()">Join</button>
+    </div>
+    
+    <button id="start-btn" onclick="startDraft()" style="display:none;">Start Draft</button>
+    
+    <div id="draft-board" style="display:none;">
+        <button onclick="toggleView('live')">Live View</button>
+        <button onclick="toggleView('board')">Draft Board</button>
+        
+        <div id="live-view">
+            <h2>Current Round: <span id="current-round-live"></span> | Current Turn: <span id="current-team-live"></span> | On Clock: <span id="timer-live">00:00</span></h2>
+            
+            <div id="admin-controls" style="display:none;">
+                <button onclick="pauseDraft()">Pause/Resume Draft</button>
+                <button onclick="revertPick()">Revert Last Pick</button>
+                <select id="admin-team-select">
+                    <!-- Populated by JS -->
+                </select>
+                <button onclick="adminMakePick()">Make Pick for Team</button>
+            </div>
+            
+            <div id="draft-order-controls" style="display:none;">
+                <h3>Draft Order</h3>
+                <ul id="draft-order-list">
+                    <!-- Populated by JS with sortable list -->
+                </ul>
+                <button onclick="saveDraftOrder()">Save Draft Order</button>
+            </div>
+            
+            <div id="pre-assign-controls" style="display:none;">
+                <h3>Pre-Assign Player</h3>
+                <select id="assign-team-select">
+                    <!-- Populated by JS -->
+                </select>
+                <select id="assign-round-select">
+                    <!-- Populated by JS with rounds -->
+                </select>
+                <select id="assign-player-select">
+                    <!-- Populated by JS with available players -->
+                </select>
+                <button onclick="assignPlayer()">Assign Player</button>
+            </div>
+            
+            <h3>Available Players</h3>
+            <input id="player-search" type="text" placeholder="Search by name, pos, or team..." oninput="filterPlayers()">
+            <select id="player-select" size="10">
+                <!-- Populated by JS -->
+            </select>
+            <button id="pick-btn" onclick="makePick()" style="display:none;">Make Pick</button>
+            
+            <h3>Rosters</h3>
+            <div id="rosters">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        
+        <div id="board-view" style="display:none; overflow-x: auto;">
+            <h2>Current Round: <span id="current-round-board"></span> | Current Turn: <span id="current-team-board"></span> | On Clock: <span id="timer-board">00:00</span></h2>
+            <h2>Draft Board</h2>
+            <table id="draft-grid">
+                <thead>
+                    <tr>
+                        <th>Round</th>
+                        <!-- Team columns populated by JS -->
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows populated by JS -->
+                </tbody>
+            </table>
+        </div>
+        
+        <button id="export-btn" onclick="exportRosters()" style="display:none;">Export Rosters to CSV</button>
+    </div>
+    <script>
+        document.querySelectorAll('input[name="join-type"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const type = radio.value;
+                const display = (type === 'team' || type === 'admin') ? 'block' : 'none';
+                document.getElementById('team-label').style.display = display;
+                document.getElementById('team-name').style.display = display;
+            });
+        });
+    </script>
+</body>
+</html>
