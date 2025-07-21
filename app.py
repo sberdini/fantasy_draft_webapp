@@ -1,5 +1,5 @@
-import gevent
-gevent.monkey_patch(all=True)  # Enhanced patch
+import eventlet
+eventlet.monkey_patch()
 
 import os
 import time
