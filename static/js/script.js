@@ -111,13 +111,22 @@ function assignPlayer() {
 function filterPlayers() {
     const input = document.getElementById('player-search')?.value.toLowerCase() || '';
     const select = document.getElementById('player-select');
-    if (select) {
-        for (let i = 0; i < select.options.length; i++) {
-            const opt = select.options[i];
-            const text = opt.text.toLowerCase();
-            opt.style.display = text.includes(input) ? '' : 'none';
-        }
-    }
+    select.innerHTML = ''; // Clear current options
+
+    // Filter and repopulate with matching players
+    const filteredPlayers = window.draftState?.available_players
+        ?.sort((a, b) => a.rank - b.rank)
+        .filter(p => {
+            const text = `${p.rank}. ${p.name} (${p.pos}, ${p.team}) - Bye: ${p.bye}`.toLowerCase();
+            return text.includes(input);
+        }) || [];
+
+    filteredPlayers.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.text = `${p.rank}. ${p.name} (${p.pos}, ${p.team}) - Bye: ${p.bye}`;
+        select.appendChild(opt);
+    });
 }
 
 function startTimer(turnStartTime) {
@@ -197,7 +206,7 @@ socket.on('update_draft', (state) => {
             const opt = document.createElement('option');
             opt.value = team;
             opt.text = team;
-            teamSelect.add(opt);
+            teamSelect.appendChild(opt);
         });
     }
 
@@ -222,7 +231,7 @@ socket.on('update_draft', (state) => {
             const opt = document.createElement('option');
             opt.value = team;
             opt.text = team;
-            assignTeamSelect.add(opt);
+            assignTeamSelect.appendChild(opt);
         });
 
         const assignRoundSelect = document.getElementById('assign-round-select');
@@ -231,7 +240,7 @@ socket.on('update_draft', (state) => {
             const opt = document.createElement('option');
             opt.value = r;
             opt.text = `Round ${r}`;
-            assignRoundSelect.add(opt);
+            assignRoundSelect.appendChild(opt);
         }
 
         const assignPlayerSelect = document.getElementById('assign-player-select');
@@ -240,7 +249,7 @@ socket.on('update_draft', (state) => {
             const opt = document.createElement('option');
             opt.value = p.name;
             opt.text = `${p.rank}. ${p.name} (${p.pos}, ${p.team}) - Bye: ${p.bye}`;
-            assignPlayerSelect.add(opt);
+            assignPlayerSelect.appendChild(opt);
         });
     }
 
@@ -259,7 +268,7 @@ socket.on('update_draft', (state) => {
         const opt = document.createElement('option');
         opt.value = p.name;
         opt.text = `${p.rank}. ${p.name} (${p.pos}, ${p.team}) - Bye: ${p.bye}`;
-        select.add(opt);
+        select.appendChild(opt);
     });
 
     // Show pick button only if it's my turn or admin
@@ -294,7 +303,6 @@ socket.on('update_draft', (state) => {
 
         state.teams.forEach(team => {
             const td = document.createElement('td');
-            // Find pick for this team in this round
             const pick = state.draft_history.find(p => p.round === round && p.team === team);
             if (pick && pick.player) {
                 const player = pick.player;
@@ -305,7 +313,7 @@ socket.on('update_draft', (state) => {
                 const posClass = `pos-${player.pos.toLowerCase()}`;
                 td.classList.add(posClass);
             } else {
-                td.innerHTML = ''; // Blank for undrafted or reverted
+                td.innerHTML = '';
             }
             tr.appendChild(td);
         });
@@ -325,7 +333,7 @@ socket.on('update_draft', (state) => {
         document.getElementById('start-btn').style.display = 'none';
         document.querySelector('button[onclick="toggleView(\'live\')"]').style.display = 'none';
         document.querySelector('button[onclick="toggleView(\'board\')"]').style.display = 'none';
-        toggleView('board'); // Default to board for spectators
+        toggleView('board');
         document.getElementById('player-search').style.display = 'none';
         document.getElementById('player-select').style.display = 'none';
     }
