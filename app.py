@@ -21,7 +21,7 @@ draft_state = {
     "available_players": players.copy(),
     "current_round": 1,
     "current_pick": 0,
-    "num_rounds": 15,
+    "num_rounds": 16,
     "started": False,
     "paused": False,
     "turn_start_time": None,
@@ -82,6 +82,9 @@ def handle_join(data):
     if data.get('is_admin'):
         session['is_admin'] = True
         if team_name:
+            if draft_state["started"] and team_name not in draft_state["teams"]:
+                emit('join_error', {'msg': 'Draft has started, no new teams can join'})
+                return
             if team_name not in draft_state["teams"]:
                 draft_state["teams"].append(team_name)
                 draft_state["rosters"][team_name] = []

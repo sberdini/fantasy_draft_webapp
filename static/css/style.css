@@ -91,7 +91,7 @@ button:hover {
     background-color: #ffffffbd; /* Dark green for headers */
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 2; /* Higher z-index for headers */
 }
 
 #board-view {
@@ -132,3 +132,80 @@ button:hover {
 
 /* Highlight current open pick */
 .current-pick-highlight { background-color: yellow !important; color: black; font-weight: bold; }
+
+/* Mobile-Specific Styles */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    h1, h2, h3 {
+        font-size: 1.2em;
+    }
+
+    button {
+        width: 100%;
+        padding: 15px;
+        font-size: 18px;
+    }
+
+    input[type="text"], select {
+        font-size: 18px;
+        padding: 12px;
+    }
+
+    #rosters {
+        grid-template-columns: 1fr; /* Stack rosters vertically on mobile */
+    }
+
+    #rosters div {
+        margin: 10px 0;
+    }
+
+    #draft-grid {
+        font-size: 0.8em;
+        overflow-x: auto; /* Enable horizontal scrolling for grid */
+    }
+
+    #draft-grid th, #draft-grid td {
+        padding: 4px;
+        min-width: 80px;
+    }
+
+    #player-select {
+        height: 200px; /* Limit height for scrolling on mobile */
+    }
+
+    #current-turn {
+        font-size: 1em;
+        text-align: center;
+    }
+
+    /* Make admin controls and other sections stack vertically */
+    #admin-controls, #draft-order-controls, #pre-assign-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    select, input {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
+
+/* Hide elements for spectators (already handled in JS, but reinforced) */
+#player-search[style*="display: none"], #player-select[style*="display: none"] {
+    display: none !important;
+}
+
+/* Round Column Styling */
+#draft-grid th:first-child, #draft-grid td:first-child {
+    background-color: #fff; /* Match grid cell background */
+    min-width: 30px; /* Minimize width for round column */
+}
+
+/* Ensure header for round column matches other headers */
+#draft-grid th:first-child {
+    background-color: #ffffffbd; /* Match header background */
+}

@@ -1,6 +1,5 @@
-const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
-//const socket = io();
-
+//const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
+const socket = io();
 let myTeam = null;
 let timerInterval = null;
 
@@ -202,10 +201,15 @@ socket.on('update_draft', (state) => {
     if (isAdmin) {
         const teamSelect = document.getElementById('admin-team-select');
         teamSelect.innerHTML = '';
+        const order = state.current_round % 2 === 1 ? state.teams : state.teams.slice().reverse();
+        const currentTeam = state.started && state.current_round <= state.num_rounds ? order[state.current_pick] : state.teams[0];
         state.teams.forEach(team => {
             const opt = document.createElement('option');
             opt.value = team;
             opt.text = team;
+            if (team === currentTeam) {
+                opt.selected = true; // Default to current picking team
+            }
             teamSelect.appendChild(opt);
         });
     }
