@@ -118,5 +118,17 @@ button:hover {
     color: #fff;
 }
 
+#reset-draft-btn {
+    padding: 10px;
+    margin: 5px;
+    background-color: #ff4444; /* Red to indicate destructive action */
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+#reset-draft-btn:hover {
+    background-color: #cc0000;
+}
+
 /* Highlight current open pick */
 .current-pick-highlight { background-color: yellow !important; color: black; font-weight: bold; }

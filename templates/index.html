@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Braj league Live Draft</h1>
+    <h1>Braj League Live Draft</h1>
     
     <div id="join-section">
         <label>Join as:</label>
@@ -36,6 +36,7 @@
             <div id="admin-controls" style="display:none;">
                 <button onclick="pauseDraft()">Pause/Resume Draft</button>
                 <button onclick="revertPick()">Revert Last Pick</button>
+                <button id="reset-draft-btn" onclick="resetDraft()" style="display: none;">Reset Draft</button>
                 <select id="admin-team-select">
                     <!-- Populated by JS -->
                 </select>

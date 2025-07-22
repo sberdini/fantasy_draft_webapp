@@ -10,7 +10,7 @@ app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 
-# Updated players list with bye weeks (from previous)
+# Placeholder for players list (to be updated by you later)
 players = [
     {"rank": 1, "name": "Ja'Marr Chase", "pos": "WR", "team": "CIN", "bye": 10},
     {"rank": 2, "name": "Bijan Robinson", "pos": "RB", "team": "ATL", "bye": 5},
@@ -71,7 +71,7 @@ players = [
     {"rank": 57, "name": "Breece Hall", "pos": "RB", "team": "NYJ", "bye": 9},
     {"rank": 58, "name": "Cooper Kupp", "pos": "WR", "team": "LAR", "bye": 8},
     {"rank": 59, "name": "Zay Flowers", "pos": "WR", "team": "BAL", "bye": 7},
-    {"rank": 60, "name": "D'Andre Swift", "pos": "RB", "team": "CHI", "bye": 5},
+    {"rank": 60, "name": "Rhamondre Stevenson", "pos": "RB", "team": "NE", "bye": 14},
     {"rank": 61, "name": "Brandon Aiyuk", "pos": "WR", "team": "SF", "bye": 14},
     {"rank": 62, "name": "Dalton Kincaid", "pos": "TE", "team": "BUF", "bye": 7},
     {"rank": 63, "name": "Calvin Ridley", "pos": "WR", "team": "TEN", "bye": 10},
@@ -354,7 +354,7 @@ def handle_join(data):
             session['team'] = 'Admin'
         emit('update_draft', draft_state, broadcast=True)
     else:
-        if draft_state["started"]and team_name not in draft_state["teams"]:
+        if draft_state["started"] and team_name not in draft_state["teams"]:
             emit('join_error', {'msg': 'Draft has started, no new teams can join'})
             return
         if not team_name:
@@ -428,6 +428,21 @@ def handle_revert():
         draft_state["current_pick"] = order.index(last_pick["team"])
         reverse_to_previous_open_pick()  # Now it will stay at the reverted spot since it's open
         draft_state["turn_start_time"] = time.time()
+        emit('update_draft', draft_state, broadcast=True)
+
+@socketio.on('reset_draft')
+def handle_reset_draft():
+    if 'is_admin' in session and session['is_admin']:
+        # Reset draft state to initial values
+        draft_state["teams"] = []
+        draft_state["rosters"] = {}
+        draft_state["available_players"] = players.copy()
+        draft_state["current_round"] = 1
+        draft_state["current_pick"] = 0
+        draft_state["started"] = False
+        draft_state["paused"] = False
+        draft_state["turn_start_time"] = None
+        draft_state["draft_history"] = []
         emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('admin_make_pick')

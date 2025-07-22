@@ -1,5 +1,6 @@
-//const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
-const socket = io();
+const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
+//const socket = io();
+
 let myTeam = null;
 let timerInterval = null;
 
@@ -65,6 +66,17 @@ function revertPick() {
     }
     if (confirm('Are you sure you want to revert the last pick?')) {
         socket.emit('revert_pick');
+    }
+}
+
+function resetDraft() {
+    const isAdmin = localStorage.getItem('is_admin') === 'true';
+    if (!isAdmin) {
+        alert('Only admins can reset the draft.');
+        return;
+    }
+    if (confirm('Are you sure you want to reset the entire draft? This will clear all teams and picks.')) {
+        socket.emit('reset_draft');
     }
 }
 
@@ -161,7 +173,13 @@ socket.on('update_draft', (state) => {
     if (state.started) {
         document.getElementById('start-btn').style.display = 'none';
     } else {
+        document.getElementById('start-btn').style.display = 'block';
         document.getElementById('export-btn').style.display = state.current_round > state.num_rounds ? 'block' : 'none';
+        // Show join section if draft is reset
+        if (!localStorage.getItem('myTeam')) {
+            document.getElementById('join-section').style.display = 'block';
+            document.getElementById('draft-board').style.display = 'none';
+        }
     }
 
     // Show admin controls if admin
@@ -170,6 +188,7 @@ socket.on('update_draft', (state) => {
     document.getElementById('admin-controls').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('draft-order-controls').style.display = (isAdmin && !state.started) ? 'block' : 'none';
     document.getElementById('pre-assign-controls').style.display = (isAdmin && !state.started) ? 'block' : 'none';
+    document.getElementById('reset-draft-btn').style.display = isAdmin ? 'block' : 'none';
 
     if (isAdmin) {
         const teamSelect = document.getElementById('admin-team-select');
