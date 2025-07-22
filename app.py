@@ -201,7 +201,8 @@ def handle_admin_pick(data):
                 "round": draft_state["current_round"],
                 "overall_pick": overall_pick,
                 "team": current_team,
-                "player": player
+                "player": player,
+                "time_taken": time.time() - draft_state["turn_start_time"]  # Record time taken for this pick
             })
             advance_to_next_open_pick()
             if draft_state["current_round"] > draft_state["num_rounds"]:
@@ -232,7 +233,8 @@ def handle_pick(data):
             "round": draft_state["current_round"],
             "overall_pick": overall_pick,
             "team": current_team,
-            "player": player
+            "player": player,
+            "time_taken": time.time() - draft_state["turn_start_time"]  # Record time taken for this pick
         })
         
         # Advance to next open pick

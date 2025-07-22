@@ -91,7 +91,7 @@ button:hover {
     background-color: #ffffffbd; /* Dark green for headers */
     position: sticky;
     top: 0;
-    z-index: 2; /* Higher z-index for headers */
+    z-index: 1; /* Higher z-index for headers */
 }
 
 #board-view {
@@ -208,4 +208,16 @@ button:hover {
 /* Ensure header for round column matches other headers */
 #draft-grid th:first-child {
     background-color: #ffffffbd; /* Match header background */
+
+}
+
+
+
+/* Total Time Styling */
+.total-time {
+    font-size: 0.8em;
+    color: #888; /* Subtle gray for time */
+    display: block; /* Display on new line under team name */
+ 
+ 
 }

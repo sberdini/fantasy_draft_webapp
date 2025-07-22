@@ -1,5 +1,6 @@
 //const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
 const socket = io();
+
 let myTeam = null;
 let timerInterval = null;
 
@@ -36,7 +37,7 @@ function joinDraft() {
     localStorage.setItem('is_spectator', data.is_spectator ? 'true' : 'false');
     document.getElementById('join-section').style.display = 'none';
     document.getElementById('draft-board').style.display = 'block';
-    document.getElementById('start-btn').style.display = 'block';
+    // Do not show start-btn here; it's handled in update_draft
 }
 
 function startDraft() {
@@ -147,6 +148,12 @@ function startTimer(turnStartTime) {
     }, 1000);
 }
 
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
 function exportRosters() {
     const state = window.draftState;
     if (!state) return;
@@ -178,10 +185,12 @@ socket.on('join_error', (data) => {
 
 socket.on('update_draft', (state) => {
     window.draftState = state;
+    const isAdmin = localStorage.getItem('is_admin') === 'true';
+    const isSpectator = localStorage.getItem('is_spectator') === 'true';
     if (state.started) {
         document.getElementById('start-btn').style.display = 'none';
     } else {
-        document.getElementById('start-btn').style.display = 'block';
+        document.getElementById('start-btn').style.display = isAdmin ? 'block' : 'none';
         document.getElementById('export-btn').style.display = state.current_round > state.num_rounds ? 'block' : 'none';
         // Show join section if draft is reset
         if (!localStorage.getItem('myTeam')) {
@@ -191,8 +200,6 @@ socket.on('update_draft', (state) => {
     }
 
     // Show admin controls if admin
-    const isAdmin = localStorage.getItem('is_admin') === 'true';
-    const isSpectator = localStorage.getItem('is_spectator') === 'true';
     document.getElementById('admin-controls').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('draft-order-controls').style.display = (isAdmin && !state.started) ? 'block' : 'none';
     document.getElementById('pre-assign-controls').style.display = (isAdmin && !state.started) ? 'block' : 'none';
@@ -293,7 +300,10 @@ socket.on('update_draft', (state) => {
     thead.innerHTML = '<th>Round</th>'; // Reset headers
     state.teams.forEach(team => {
         const th = document.createElement('th');
-        th.textContent = team;
+        const totalTime = state.draft_history
+            .filter(p => p.team === team)
+            .reduce((sum, p) => sum + p.time_taken, 0);
+        th.innerHTML = `${team}<br><span class="total-time">${formatTime(totalTime)}</span>`;
         thead.appendChild(th);
     });
 
