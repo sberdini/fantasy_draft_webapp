@@ -1,6 +1,5 @@
-const socket = io('https://your-project-id.uc.r.appspot.com', { transports: ['websocket'] });
-//const socket = io();
-
+//const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
+const socket = io();
 let myTeam = null;
 let timerInterval = null;
 
@@ -10,8 +9,12 @@ window.addEventListener('load', () => {
 });
 
 function joinDraft() {
-    const joinType = document.querySelector('input[name="join-type"]:checked').value;
-    const team = document.getElementById('team-name').value.trim();
+    const joinType = document.querySelector('input[name="join-type"]:checked')?.value;
+    const team = document.getElementById('team-name')?.value.trim();
+    if (!joinType) {
+        alert('Please select a join type.');
+        return;
+    }
     let data = {};
     if (joinType === 'spectator') {
         data.is_spectator = true;
@@ -23,7 +26,7 @@ function joinDraft() {
         data.team = team;
         data.is_admin = false;
     } else if (joinType === 'admin') {
-        data.team = team;  // Optional
+        data.team = team; // Optional
         data.is_admin = true;
     }
     socket.emit('join', data);
@@ -42,9 +45,11 @@ function startDraft() {
 
 function makePick() {
     const select = document.getElementById('player-select');
-    const player = select.value;
+    const player = select?.value;
     if (player) {
         socket.emit('make_pick', { player });
+    } else {
+        alert('Please select a player.');
     }
 }
 
@@ -53,28 +58,37 @@ function pauseDraft() {
 }
 
 function revertPick() {
-    socket.emit('revert_pick');
+    const isAdmin = localStorage.getItem('is_admin') === 'true';
+    if (!isAdmin) {
+        alert('Only admins can revert picks.');
+        return;
+    }
+    if (confirm('Are you sure you want to revert the last pick?')) {
+        socket.emit('revert_pick');
+    }
 }
 
 function adminMakePick() {
     const select = document.getElementById('player-select');
-    const player = select.value;
-    const forTeam = document.getElementById('admin-team-select').value;
+    const player = select?.value;
+    const forTeam = document.getElementById('admin-team-select')?.value;
     if (player && forTeam) {
         socket.emit('admin_make_pick', { player, for_team: forTeam });
+    } else {
+        alert('Please select both a player and a team.');
     }
 }
 
 function saveDraftOrder() {
     const list = document.getElementById('draft-order-list');
-    const newOrder = Array.from(list.children).map(li => li.textContent);
+    const newOrder = Array.from(list?.children || []).map(li => li.textContent);
     socket.emit('reorder_teams', { new_order: newOrder });
 }
 
 function assignPlayer() {
-    const team = document.getElementById('assign-team-select').value;
-    const round = parseInt(document.getElementById('assign-round-select').value);
-    const player = document.getElementById('assign-player-select').value;
+    const team = document.getElementById('assign-team-select')?.value;
+    const round = parseInt(document.getElementById('assign-round-select')?.value);
+    const player = document.getElementById('assign-player-select')?.value;
     if (team && round && player) {
         socket.emit('assign_pick', { team, round, player });
     } else {
@@ -83,12 +97,14 @@ function assignPlayer() {
 }
 
 function filterPlayers() {
-    const input = document.getElementById('player-search').value.toLowerCase();
+    const input = document.getElementById('player-search')?.value.toLowerCase() || '';
     const select = document.getElementById('player-select');
-    for (let i = 0; i < select.options.length; i++) {
-        const opt = select.options[i];
-        const text = opt.text.toLowerCase();
-        opt.style.display = text.includes(input) ? '' : 'none';
+    if (select) {
+        for (let i = 0; i < select.options.length; i++) {
+            const opt = select.options[i];
+            const text = opt.text.toLowerCase();
+            opt.style.display = text.includes(input) ? '' : 'none';
+        }
     }
 }
 
@@ -97,8 +113,8 @@ function startTimer(turnStartTime) {
     const timerEl = document.getElementById('timer-live');
     const timerBoardEl = document.getElementById('timer-board');
     if (!turnStartTime) {
-        timerEl.innerText = '00:00';
-        timerBoardEl.innerText = '00:00';
+        timerEl.textContent = '00:00';
+        timerBoardEl.textContent = '00:00';
         return;
     }
     timerInterval = setInterval(() => {
@@ -106,13 +122,14 @@ function startTimer(turnStartTime) {
         const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
         const seconds = (elapsed % 60).toString().padStart(2, '0');
         const timeString = `${minutes}:${seconds}`;
-        timerEl.innerText = timeString;
-        timerBoardEl.innerText = timeString;
+        timerEl.textContent = timeString;
+        timerBoardEl.textContent = timeString;
     }, 1000);
 }
 
 function exportRosters() {
     const state = window.draftState;
+    if (!state) return;
     let csvContent = 'Team,Player Name,Position,Team,Bye Week\n';
     state.teams.forEach(team => {
         state.rosters[team].forEach(player => {
@@ -170,7 +187,7 @@ socket.on('update_draft', (state) => {
         list.innerHTML = '';
         state.teams.forEach(team => {
             const li = document.createElement('li');
-            li.innerText = team;
+            li.textContent = team;
             list.appendChild(li);
         });
         Sortable.create(list, {
@@ -209,12 +226,12 @@ socket.on('update_draft', (state) => {
     }
 
     // Update round and team for both views
-    document.getElementById('current-round-live').innerText = state.current_round;
-    document.getElementById('current-round-board').innerText = state.current_round;
+    document.getElementById('current-round-live').textContent = state.current_round;
+    document.getElementById('current-round-board').textContent = state.current_round;
     const order = state.current_round % 2 === 1 ? state.teams : state.teams.slice().reverse();
     const currentTeam = order[state.current_pick] || 'Draft Over';
-    document.getElementById('current-team-live').innerText = currentTeam;
-    document.getElementById('current-team-board').innerText = currentTeam;
+    document.getElementById('current-team-live').textContent = currentTeam;
+    document.getElementById('current-team-board').textContent = currentTeam;
 
     // Update available players
     const select = document.getElementById('player-select');
@@ -227,7 +244,7 @@ socket.on('update_draft', (state) => {
     });
 
     // Show pick button only if it's my turn or admin
-    document.getElementById('pick-btn').style.display = ( (myTeam === currentTeam || isAdmin) && state.started && !state.paused ) ? 'block' : 'none';
+    document.getElementById('pick-btn').style.display = ((myTeam === currentTeam || isAdmin) && state.started && !state.paused) ? 'block' : 'none';
 
     // Update rosters
     const rostersDiv = document.getElementById('rosters');
@@ -238,13 +255,13 @@ socket.on('update_draft', (state) => {
         rostersDiv.appendChild(div);
     });
 
-    // Update draft board grid
+    // Update draft board grid to ensure reverted picks leave slots blank
     const table = document.getElementById('draft-grid');
     const thead = table.querySelector('thead tr');
-    thead.innerHTML = '<th>Round</th>';  // Reset headers
+    thead.innerHTML = '<th>Round</th>'; // Reset headers
     state.teams.forEach(team => {
         const th = document.createElement('th');
-        th.innerText = team;
+        th.textContent = team;
         thead.appendChild(th);
     });
 
@@ -253,24 +270,23 @@ socket.on('update_draft', (state) => {
     for (let round = 1; round <= state.num_rounds; round++) {
         const tr = document.createElement('tr');
         const roundTd = document.createElement('td');
-        roundTd.innerText = round;
+        roundTd.textContent = round;
         tr.appendChild(roundTd);
 
         state.teams.forEach(team => {
             const td = document.createElement('td');
             // Find pick for this team in this round
             const pick = state.draft_history.find(p => p.round === round && p.team === team);
-            if (pick) {
+            if (pick && pick.player) {
                 const player = pick.player;
                 const nameParts = player.name.split(' ');
                 const firstName = nameParts[0];
                 const lastName = nameParts.slice(1).join(' ');
                 td.innerHTML = `${firstName}<br>${lastName}<br>(${player.pos}, ${player.team}) - Bye: ${player.bye}`;
-                // Add class for color-coding
                 const posClass = `pos-${player.pos.toLowerCase()}`;
                 td.classList.add(posClass);
             } else {
-                td.innerText = '';  // Blank for undrafted
+                td.innerHTML = ''; // Blank for undrafted or reverted
             }
             tr.appendChild(td);
         });
@@ -285,14 +301,13 @@ socket.on('update_draft', (state) => {
     }
 
     // For spectators, hide join section and show board by default, hide buttons
-    if (localStorage.getItem('is_spectator') === 'true') {
+    if (isSpectator) {
         document.getElementById('join-section').style.display = 'none';
         document.getElementById('start-btn').style.display = 'none';
         document.querySelector('button[onclick="toggleView(\'live\')"]').style.display = 'none';
         document.querySelector('button[onclick="toggleView(\'board\')"]').style.display = 'none';
-        toggleView('board');  // Default to board for spectators
+        toggleView('board'); // Default to board for spectators
         document.getElementById('player-search').style.display = 'none';
         document.getElementById('player-select').style.display = 'none';
     }
-
 });

@@ -71,7 +71,7 @@ players = [
     {"rank": 57, "name": "Breece Hall", "pos": "RB", "team": "NYJ", "bye": 9},
     {"rank": 58, "name": "Cooper Kupp", "pos": "WR", "team": "LAR", "bye": 8},
     {"rank": 59, "name": "Zay Flowers", "pos": "WR", "team": "BAL", "bye": 7},
-    {"rank": 60, "name": "Rhamondre Stevenson", "pos": "RB", "team": "NE", "bye": 14},
+    {"rank": 60, "name": "D'Andre Swift", "pos": "RB", "team": "CHI", "bye": 5},
     {"rank": 61, "name": "Brandon Aiyuk", "pos": "WR", "team": "SF", "bye": 14},
     {"rank": 62, "name": "Dalton Kincaid", "pos": "TE", "team": "BUF", "bye": 7},
     {"rank": 63, "name": "Calvin Ridley", "pos": "WR", "team": "TEN", "bye": 10},
@@ -354,7 +354,7 @@ def handle_join(data):
             session['team'] = 'Admin'
         emit('update_draft', draft_state, broadcast=True)
     else:
-        if draft_state["started"]:
+        if draft_state["started"]and team_name not in draft_state["teams"]:
             emit('join_error', {'msg': 'Draft has started, no new teams can join'})
             return
         if not team_name:
@@ -422,7 +422,11 @@ def handle_revert():
         team = last_pick["team"]
         draft_state["rosters"][team].pop()
         draft_state["available_players"].append(player)
-        reverse_to_previous_open_pick()
+        # Set to last pick's position before reversing
+        draft_state["current_round"] = last_pick["round"]
+        order = get_current_order()
+        draft_state["current_pick"] = order.index(last_pick["team"])
+        reverse_to_previous_open_pick()  # Now it will stay at the reverted spot since it's open
         draft_state["turn_start_time"] = time.time()
         emit('update_draft', draft_state, broadcast=True)
 
