@@ -23,7 +23,7 @@ draft_state = {
     "available_players": players.copy(),
     "current_round": 1,
     "current_pick": 0,
-    "num_rounds": 16,
+    "num_rounds": 17,
     "started": False,
     "paused": False,
     "turn_start_time": None,

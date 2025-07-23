@@ -161,7 +161,11 @@ function filterPlayers() {
     });
 }
 
-
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
 
 function startTimer(turnStartTime) {
     if (timerInterval) clearInterval(timerInterval);
@@ -180,12 +184,6 @@ function startTimer(turnStartTime) {
         timerEl.textContent = timeString;
         timerBoardEl.textContent = timeString;
     }, 1000);
-}
-
-function formatTime(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
 function exportRosters() {
@@ -307,6 +305,17 @@ socket.on('update_draft', (state) => {
     document.getElementById('current-team-live').textContent = currentTeam;
     document.getElementById('current-team-board').textContent = currentTeam;
 
+    // Toggle draft status and completed banner
+    const draftStatus = document.getElementById('draft-status');
+    const draftCompleteBanner = document.getElementById('draft-complete-banner');
+    if (state.current_round > state.num_rounds && !state.started) {
+        draftStatus.style.display = 'none';
+        draftCompleteBanner.style.display = 'block';
+    } else {
+        draftStatus.style.display = 'block';
+        draftCompleteBanner.style.display = 'none';
+    }
+
     // Update available players
     const select = document.getElementById('player-select');
     select.innerHTML = '';
@@ -337,7 +346,7 @@ socket.on('update_draft', (state) => {
         const th = document.createElement('th');
         const totalTime = state.draft_history
             .filter(p => p.team === team)
-            .reduce((sum, p) => sum + p.time_taken, 0);
+            .reduce((sum, p) => sum + (p.time_taken || 0), 0);
         th.innerHTML = `${team}<br><span class="total-time">${formatTime(totalTime)}</span>`;
         thead.appendChild(th);
     });

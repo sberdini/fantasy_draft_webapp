@@ -184,6 +184,16 @@ button:hover {
     width: 45%;
 }
 
+/* Draft Complete Banner */
+#draft-complete-banner {
+    background-color: #4CAF50; /* Green to match theme */
+    color: #fff;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    font-weight: bold;
+}
+
 /* Mobile-Specific Styles */
 @media (max-width: 768px) {
     body {
@@ -252,6 +262,11 @@ button:hover {
     .modal-buttons button {
         font-size: 16px;
         padding: 12px;
+    }
+
+    #draft-complete-banner {
+        font-size: 1em;
+        padding: 8px;
     }
 }
 
