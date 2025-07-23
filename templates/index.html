@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>National Braj League Draft</h1>
+    <h1>Braj League Live Draft</h1>
     
     <div id="join-section">
         <label>Join as:</label>
@@ -43,9 +43,8 @@
         <button onclick="toggleView('board')">Draft Board</button>
         
         <div id="live-view">
-            <h2>Current Round: <span id="current-round-live"></span> | Current Turn: <span id="current-team-live"></span> | On Clock: <span id="timer-live">00:00</span></h2>
-            <h2 id="draft-complete-banner" style="display: none;">Draft is completed</h2>
-            
+            <h2 id="draft-status-live">Current Round: <span id="current-round-live"></span> | Current Turn: <span id="current-team-live"></span> | On Clock: <span id="timer-live">00:00</span></h2>
+            <h2 id="draft-complete-banner-live" style="display: none;">Draft is completed</h2>
             <div id="admin-controls" style="display:none;">
                 <button onclick="pauseDraft()">Pause/Resume Draft</button>
                 <button onclick="revertPick()">Revert Last Pick</button>

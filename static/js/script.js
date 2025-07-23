@@ -1,5 +1,5 @@
-//const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
-const socket = io();
+const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
+//const socket = io();
 
 let myTeam = null;
 let timerInterval = null;
@@ -308,12 +308,18 @@ socket.on('update_draft', (state) => {
     // Toggle draft status and completed banner
     const draftStatus = document.getElementById('draft-status');
     const draftCompleteBanner = document.getElementById('draft-complete-banner');
+    const draftStatusLive = document.getElementById('draft-status-live');
+    const draftCompleteBannerLive = document.getElementById('draft-complete-banner-live');
     if (state.current_round > state.num_rounds && !state.started) {
         draftStatus.style.display = 'none';
         draftCompleteBanner.style.display = 'block';
+        draftStatusLive.style.display = 'none';
+        draftCompleteBannerLive.style.display = 'block';
     } else {
         draftStatus.style.display = 'block';
         draftCompleteBanner.style.display = 'none';
+        draftStatusLive.style.display = 'block';
+        draftCompleteBannerLive.style.display = 'none';
     }
 
     // Update available players
@@ -346,7 +352,7 @@ socket.on('update_draft', (state) => {
         const th = document.createElement('th');
         const totalTime = state.draft_history
             .filter(p => p.team === team)
-            .reduce((sum, p) => sum + (p.time_taken || 0), 0);
+            .reduce((sum, p) => sum + p.time_taken, 0);
         th.innerHTML = `${team}<br><span class="total-time">${formatTime(totalTime)}</span>`;
         thead.appendChild(th);
     });
