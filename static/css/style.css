@@ -133,6 +133,57 @@ button:hover {
 /* Highlight current open pick */
 .current-pick-highlight { background-color: yellow !important; color: black; font-weight: bold; }
 
+/* Total Time Styling */
+.total-time {
+    font-size: 0.8em;
+    color: #888; /* Subtle gray for time */
+    display: block; /* Display on new line under team name */
+}
+
+/* Admin Password Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent background */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+}
+
+.modal-content h2 {
+    color: #4CAF50;
+    margin-bottom: 20px;
+}
+
+#admin-password-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.modal-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-around;
+}
+
+.modal-buttons button {
+    width: 45%;
+}
+
 /* Mobile-Specific Styles */
 @media (max-width: 768px) {
     body {
@@ -149,7 +200,7 @@ button:hover {
         font-size: 18px;
     }
 
-    input[type="text"], select {
+    input[type="text"], input[type="password"], select {
         font-size: 18px;
         padding: 12px;
     }
@@ -192,6 +243,16 @@ button:hover {
         width: 100%;
         margin-bottom: 10px;
     }
+
+    .modal-content {
+        width: 95%;
+        padding: 15px;
+    }
+
+    .modal-buttons button {
+        font-size: 16px;
+        padding: 12px;
+    }
 }
 
 /* Hide elements for spectators (already handled in JS, but reinforced) */
@@ -208,16 +269,4 @@ button:hover {
 /* Ensure header for round column matches other headers */
 #draft-grid th:first-child {
     background-color: #ffffffbd; /* Match header background */
-
-}
-
-
-
-/* Total Time Styling */
-.total-time {
-    font-size: 0.8em;
-    color: #888; /* Subtle gray for time */
-    display: block; /* Display on new line under team name */
- 
- 
 }

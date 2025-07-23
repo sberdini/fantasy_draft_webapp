@@ -3,6 +3,7 @@ const socket = io();
 
 let myTeam = null;
 let timerInterval = null;
+let pendingJoinData = null; // Store join data while waiting for password
 
 // Clear localStorage on page load to reset roles for testing
 window.addEventListener('load', () => {
@@ -19,6 +20,13 @@ function joinDraft() {
     let data = {};
     if (joinType === 'spectator') {
         data.is_spectator = true;
+        socket.emit('join', data);
+        myTeam = 'Spectator';
+        localStorage.setItem('myTeam', myTeam);
+        localStorage.setItem('is_admin', 'false');
+        localStorage.setItem('is_spectator', 'true');
+        document.getElementById('join-section').style.display = 'none';
+        document.getElementById('draft-board').style.display = 'block';
     } else if (joinType === 'team') {
         if (!team) {
             alert('Team name required for team join.');
@@ -26,18 +34,42 @@ function joinDraft() {
         }
         data.team = team;
         data.is_admin = false;
+        socket.emit('join', data);
+        myTeam = team;
+        localStorage.setItem('myTeam', myTeam);
+        localStorage.setItem('is_admin', 'false');
+        localStorage.setItem('is_spectator', 'false');
+        document.getElementById('join-section').style.display = 'none';
+        document.getElementById('draft-board').style.display = 'block';
     } else if (joinType === 'admin') {
-        data.team = team; // Optional
-        data.is_admin = true;
+        // Show password modal
+        pendingJoinData = { team: team, is_admin: true };
+        document.getElementById('admin-password-modal').style.display = 'flex';
+        document.getElementById('admin-password-input').value = ''; // Clear input
+        document.getElementById('admin-password-input').focus();
     }
+}
+
+function submitAdminPassword() {
+    const password = document.getElementById('admin-password-input')?.value.trim();
+    if (!password) {
+        alert('Please enter a password.');
+        return;
+    }
+    const data = { ...pendingJoinData, password };
     socket.emit('join', data);
-    myTeam = (joinType === 'spectator') ? 'Spectator' : (team || 'Admin');
+    myTeam = pendingJoinData.team || 'Admin';
     localStorage.setItem('myTeam', myTeam);
-    localStorage.setItem('is_admin', data.is_admin ? 'true' : 'false');
-    localStorage.setItem('is_spectator', data.is_spectator ? 'true' : 'false');
+    localStorage.setItem('is_admin', 'true');
+    localStorage.setItem('is_spectator', 'false');
+    document.getElementById('admin-password-modal').style.display = 'none';
     document.getElementById('join-section').style.display = 'none';
     document.getElementById('draft-board').style.display = 'block';
-    // Do not show start-btn here; it's handled in update_draft
+}
+
+function cancelAdminPassword() {
+    document.getElementById('admin-password-modal').style.display = 'none';
+    pendingJoinData = null;
 }
 
 function startDraft() {
@@ -129,6 +161,8 @@ function filterPlayers() {
     });
 }
 
+
+
 function startTimer(turnStartTime) {
     if (timerInterval) clearInterval(timerInterval);
     const timerEl = document.getElementById('timer-live');
@@ -179,6 +213,7 @@ function toggleView(view) {
 
 socket.on('join_error', (data) => {
     alert(data.msg);
+    document.getElementById('admin-password-modal').style.display = 'none';
     document.getElementById('join-section').style.display = 'block';
     document.getElementById('draft-board').style.display = 'none';
 });

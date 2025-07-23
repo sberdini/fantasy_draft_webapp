@@ -10,9 +10,11 @@ app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 
-# Placeholder for players list (to be updated by you later)
+# Placeholder for players list
 from players import players
 
+# Admin password (use environment variable in production)
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Braj2025')
 
 # Draft state
 draft_state = {
@@ -80,6 +82,10 @@ def handle_join(data):
         return
     team_name = data.get('team', '')
     if data.get('is_admin'):
+        password = data.get('password', '')
+        if password != ADMIN_PASSWORD:
+            emit('join_error', {'msg': 'Invalid admin password.'})
+            return
         session['is_admin'] = True
         if team_name:
             if draft_state["started"] and team_name not in draft_state["teams"]:

@@ -24,6 +24,18 @@
         <button onclick="joinDraft()">Join</button>
     </div>
     
+    <!-- Admin Password Modal -->
+    <div id="admin-password-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Enter Admin Password</h2>
+            <input id="admin-password-input" type="password" placeholder="Password">
+            <div class="modal-buttons">
+                <button onclick="submitAdminPassword()">Submit</button>
+                <button onclick="cancelAdminPassword()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
     <button id="start-btn" onclick="startDraft()" style="display:none;">Start Draft</button>
     
     <div id="draft-board" style="display:none;">
@@ -100,9 +112,9 @@
         document.querySelectorAll('input[name="join-type"]').forEach(radio => {
             radio.addEventListener('change', () => {
                 const type = radio.value;
-                const display = (type === 'team' || type === 'admin') ? 'block' : 'none';
-                document.getElementById('team-label').style.display = display;
-                document.getElementById('team-name').style.display = display;
+                const teamDisplay = (type === 'team' || type === 'admin') ? 'block' : 'none';
+                document.getElementById('team-label').style.display = teamDisplay;
+                document.getElementById('team-name').style.display = teamDisplay;
             });
         });
     </script>
