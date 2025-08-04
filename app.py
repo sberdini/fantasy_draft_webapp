@@ -23,11 +23,12 @@ draft_state = {
     "available_players": players.copy(),
     "current_round": 1,
     "current_pick": 0,
-    "num_rounds": 17,
+    "num_rounds": 16,
     "started": False,
     "paused": False,
     "turn_start_time": None,
     "draft_history": [],
+    "player_queues": {},  # New: {team: [player_names]}
 }
 
 def get_current_order():
@@ -94,6 +95,7 @@ def handle_join(data):
             if team_name not in draft_state["teams"]:
                 draft_state["teams"].append(team_name)
                 draft_state["rosters"][team_name] = []
+                draft_state["player_queues"][team_name] = []  # Initialize queue for new team
             session['team'] = team_name
         else:
             session['team'] = 'Admin'
@@ -108,6 +110,7 @@ def handle_join(data):
         if team_name not in draft_state["teams"]:
             draft_state["teams"].append(team_name)
             draft_state["rosters"][team_name] = []
+            draft_state["player_queues"][team_name] = []  # Initialize queue for new team
         session['team'] = team_name
         emit('update_draft', draft_state, broadcast=True)
 
@@ -188,6 +191,24 @@ def handle_reset_draft():
         draft_state["paused"] = False
         draft_state["turn_start_time"] = None
         draft_state["draft_history"] = []
+        draft_state["player_queues"] = {}  # Reset queues
+        emit('update_draft', draft_state, broadcast=True)
+
+@socketio.on('add_to_queue')
+def handle_add_to_queue(data):
+    team = session.get('team')
+    player_name = data['player']
+    player = next((p for p in draft_state["available_players"] if p['name'] == player_name), None)
+    if team and player and team in draft_state["player_queues"] and player not in draft_state["player_queues"][team]:
+        draft_state["player_queues"][team].append(player)
+        emit('update_draft', draft_state, broadcast=True)
+
+@socketio.on('remove_from_queue')
+def handle_remove_from_queue(data):
+    team = session.get('team')
+    player_name = data['player']
+    if team and team in draft_state["player_queues"]:
+        draft_state["player_queues"][team] = [p for p in draft_state["player_queues"][team] if p['name'] != player_name]
         emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('admin_make_pick')
@@ -210,6 +231,9 @@ def handle_admin_pick(data):
                 "player": player,
                 "time_taken": time.time() - draft_state["turn_start_time"]  # Record time taken for this pick
             })
+            # Remove drafted player from all queues
+            for queue_team in draft_state["player_queues"]:
+                draft_state["player_queues"][queue_team] = [p for p in draft_state["player_queues"][queue_team] if p['name'] != player_name]
             advance_to_next_open_pick()
             if draft_state["current_round"] > draft_state["num_rounds"]:
                 draft_state["started"] = False
@@ -242,6 +266,10 @@ def handle_pick(data):
             "player": player,
             "time_taken": time.time() - draft_state["turn_start_time"]  # Record time taken for this pick
         })
+        
+        # Remove drafted player from all queues
+        for queue_team in draft_state["player_queues"]:
+            draft_state["player_queues"][queue_team] = [p for p in draft_state["player_queues"][queue_team] if p['name'] != player_name]
         
         # Advance to next open pick
         advance_to_next_open_pick()

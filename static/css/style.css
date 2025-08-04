@@ -194,6 +194,75 @@ button:hover {
     font-weight: bold;
 }
 
+/* Players Container */
+.players-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.available-players {
+    flex: 1;
+    min-width: 300px;
+}
+
+#player-queue {
+    flex: 1;
+    min-width: 300px;
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+#queue-list {
+    list-style: none;
+    padding: 0;
+}
+
+#queue-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #333;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+#queue-list li button {
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 5px;
+}
+
+#queue-list li button:hover {
+    background-color: #cc0000;
+}
+
+.draft-queue-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.draft-queue-btn:hover {
+    background-color: #0056b3;
+}
+
+#queue-btn {
+    background-color: #4CAF50;
+    color: white;
+    margin-left: 10px;
+}
+
 /* Mobile-Specific Styles */
 @media (max-width: 768px) {
     body {
@@ -267,6 +336,25 @@ button:hover {
     #draft-complete-banner {
         font-size: 1em;
         padding: 8px;
+    }
+
+    .players-container {
+        flex-direction: column; /* Stack on mobile */
+    }
+
+    #player-queue {
+        margin-top: 20px;
+    }
+
+    #queue-btn {
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
+    }
+
+    #queue-list li button {
+        margin-left: 5px;
+        font-size: 0.8em;
     }
 }
 

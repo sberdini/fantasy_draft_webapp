@@ -140,6 +140,24 @@ function assignPlayer() {
     }
 }
 
+function addToQueue() {
+    const select = document.getElementById('player-select');
+    const player = select?.value;
+    if (player) {
+        socket.emit('add_to_queue', { player });
+    } else {
+        alert('Please select a player to add to queue.');
+    }
+}
+
+function removeFromQueue(player) {
+    socket.emit('remove_from_queue', { player });
+}
+
+function makePick(player) {
+    socket.emit('make_pick', { player });
+}
+
 function filterPlayers() {
     const input = document.getElementById('player-search')?.value.toLowerCase() || '';
     const select = document.getElementById('player-select');
@@ -308,18 +326,12 @@ socket.on('update_draft', (state) => {
     // Toggle draft status and completed banner
     const draftStatus = document.getElementById('draft-status');
     const draftCompleteBanner = document.getElementById('draft-complete-banner');
-    const draftStatusLive = document.getElementById('draft-status-live');
-    const draftCompleteBannerLive = document.getElementById('draft-complete-banner-live');
     if (state.current_round > state.num_rounds && !state.started) {
         draftStatus.style.display = 'none';
         draftCompleteBanner.style.display = 'block';
-        draftStatusLive.style.display = 'none';
-        draftCompleteBannerLive.style.display = 'block';
     } else {
         draftStatus.style.display = 'block';
         draftCompleteBanner.style.display = 'none';
-        draftStatusLive.style.display = 'block';
-        draftCompleteBannerLive.style.display = 'none';
     }
 
     // Update available players
@@ -334,6 +346,40 @@ socket.on('update_draft', (state) => {
 
     // Show pick button only if it's my turn or admin
     document.getElementById('pick-btn').style.display = ((myTeam === currentTeam || isAdmin) && state.started && !state.paused) ? 'block' : 'none';
+
+    // Show Add to Queue button for non-spectators when draft hasn't ended
+    document.getElementById('queue-btn').style.display = (!isSpectator && state.current_round <= state.num_rounds) ? 'block' : 'none';
+
+    // Show player queue for non-spectators
+    document.getElementById('player-queue').style.display = (!isSpectator) ? 'block' : 'none';
+
+    // Clear and update queue list
+    const queueList = document.getElementById('queue-list');
+    queueList.innerHTML = '';
+    const queue = state.player_queues[myTeam] || [];
+    const draftedPlayers = new Set(state.draft_history.map(p => p.player.name));
+    queue.forEach(p => {
+        if (draftedPlayers.has(p.name)) {
+            // Automatically remove drafted player from queue
+            removeFromQueue(p.name);
+            return;
+        }
+        const li = document.createElement('li');
+        li.textContent = `${p.rank}. ${p.name} (${p.pos}, ${p.team}) - Bye: ${p.bye}`;
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = 'Remove';
+        removeBtn.onclick = () => removeFromQueue(p.name);
+        li.appendChild(removeBtn);
+        const isMyTurn = myTeam === currentTeam && state.started && !state.paused;
+        if (isMyTurn) {
+            const draftBtn = document.createElement('button');
+            draftBtn.textContent = 'Draft';
+            draftBtn.classList.add('draft-queue-btn');
+            draftBtn.onclick = () => makePick(p.name);
+            li.appendChild(draftBtn);
+        }
+        queueList.appendChild(li);
+    });
 
     // Update rosters
     const rostersDiv = document.getElementById('rosters');
@@ -400,5 +446,7 @@ socket.on('update_draft', (state) => {
         toggleView('board');
         document.getElementById('player-search').style.display = 'none';
         document.getElementById('player-select').style.display = 'none';
+        document.getElementById('queue-btn').style.display = 'none';
+        document.getElementById('player-queue').style.display = 'none';
     }
 });

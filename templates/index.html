@@ -77,12 +77,21 @@
                 <button onclick="assignPlayer()">Assign Player</button>
             </div>
             
-            <h3>Available Players</h3>
-            <input id="player-search" type="text" placeholder="Search by name, pos, or team..." oninput="filterPlayers()">
-            <select id="player-select" size="10">
-                <!-- Populated by JS -->
-            </select>
-            <button id="pick-btn" onclick="makePick()" style="display:none;">Make Pick</button>
+            <div class="players-container">
+                <div class="available-players">
+                    <h3>Available Players</h3>
+                    <input id="player-search" type="text" placeholder="Search by name, pos, or team..." oninput="filterPlayers()">
+                    <select id="player-select" size="10">
+                        <!-- Populated by JS -->
+                    </select>
+                    <button id="pick-btn" onclick="makePick()" style="display:none;">Make Pick</button>
+                    <button id="queue-btn" onclick="addToQueue()" style="display:none;">Add to Queue</button>
+                </div>
+                <div id="player-queue" style="display: none;">
+                    <h3>My Player Queue</h3>
+                    <ul id="queue-list"></ul>
+                </div>
+            </div>
             
             <h3>Rosters</h3>
             <div id="rosters">
