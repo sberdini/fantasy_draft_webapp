@@ -39,6 +39,7 @@ select, input, button {
 button {
     cursor: pointer;
     transition: background-color 0.3s;
+    
 }
 
 button:hover {
@@ -210,6 +211,7 @@ button:hover {
     flex: 1;
     min-width: 300px;
     background-color: #1e1e1e;
+    border: 1px solid #4CAF50 ; 
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
