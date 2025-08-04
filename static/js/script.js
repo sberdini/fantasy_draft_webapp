@@ -1,5 +1,5 @@
-const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
-//const socket = io();
+//const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
+const socket = io();
 
 let myTeam = null;
 let timerInterval = null;
@@ -123,6 +123,17 @@ function adminMakePick() {
     }
 }
 
+function adminManualPick() {
+    const playerName = document.getElementById('admin-manual-player-input')?.value.trim();
+    const forTeam = document.getElementById('admin-manual-team-select')?.value;
+    const position = document.getElementById('admin-manual-position-select')?.value;
+    if (playerName && forTeam && position) {
+        socket.emit('admin_manual_pick', { player: playerName, position: position, for_team: forTeam });
+    } else {
+        alert('Please enter a player name, select a position, and select a team.');
+    }
+}
+
 function saveDraftOrder() {
     const list = document.getElementById('draft-order-list');
     const newOrder = Array.from(list?.children || []).map(li => li.textContent);
@@ -154,7 +165,7 @@ function removeFromQueue(player) {
     socket.emit('remove_from_queue', { player });
 }
 
-function makePick(player) {
+function draftFromQueue(player) {
     socket.emit('make_pick', { player });
 }
 
@@ -234,6 +245,10 @@ socket.on('join_error', (data) => {
     document.getElementById('draft-board').style.display = 'none';
 });
 
+socket.on('error', (data) => {
+    alert(data.msg);
+});
+
 socket.on('update_draft', (state) => {
     window.draftState = state;
     const isAdmin = localStorage.getItem('is_admin') === 'true';
@@ -259,8 +274,10 @@ socket.on('update_draft', (state) => {
     if (isAdmin) {
         const teamSelect = document.getElementById('admin-team-select');
         teamSelect.innerHTML = '';
+        const manualTeamSelect = document.getElementById('admin-manual-team-select');
+        manualTeamSelect.innerHTML = '';
         const order = state.current_round % 2 === 1 ? state.teams : state.teams.slice().reverse();
-        const currentTeam = state.started && state.current_round <= state.num_rounds ? order[state.current_pick] : state.teams[0];
+        const currentTeam = state.started && state.current_round <= state.num_rounds ? order[state.current_pick] : (state.teams[0] || '');
         state.teams.forEach(team => {
             const opt = document.createElement('option');
             opt.value = team;
@@ -269,6 +286,14 @@ socket.on('update_draft', (state) => {
                 opt.selected = true; // Default to current picking team
             }
             teamSelect.appendChild(opt);
+
+            const manualOpt = document.createElement('option');
+            manualOpt.value = team;
+            manualOpt.text = team;
+            if (team === currentTeam) {
+                manualOpt.selected = true;
+            }
+            manualTeamSelect.appendChild(manualOpt);
         });
     }
 
@@ -375,7 +400,7 @@ socket.on('update_draft', (state) => {
             const draftBtn = document.createElement('button');
             draftBtn.textContent = 'Draft';
             draftBtn.classList.add('draft-queue-btn');
-            draftBtn.onclick = () => makePick(p.name);
+            draftBtn.onclick = () => draftFromQueue(p.name);
             li.appendChild(draftBtn);
         }
         queueList.appendChild(li);

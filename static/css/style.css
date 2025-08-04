@@ -39,7 +39,6 @@ select, input, button {
 button {
     cursor: pointer;
     transition: background-color 0.3s;
-    
 }
 
 button:hover {
@@ -211,7 +210,7 @@ button:hover {
     flex: 1;
     min-width: 300px;
     background-color: #1e1e1e;
-    border: 1px solid #4CAF50 ; 
+    border: 1px solid #4CAF50;
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
@@ -262,7 +261,32 @@ button:hover {
 #queue-btn {
     background-color: #4CAF50;
     color: white;
-    margin-left: 10px;
+}
+
+/* Button Group for Pick and Queue */
+.button-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* Admin Manual Pick Styling */
+#admin-manual-pick {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+#admin-manual-pick h3 {
+    margin-bottom: 5px;
+}
+
+#admin-manual-pick select,
+#admin-manual-pick input,
+#admin-manual-pick button {
+    width: 100%;
 }
 
 /* Mobile-Specific Styles */
@@ -314,7 +338,7 @@ button:hover {
     }
 
     /* Make admin controls and other sections stack vertically */
-    #admin-controls, #draft-order-controls, #pre-assign-controls {
+    #admin-controls, #draft-order-controls, #pre-assign-controls, #admin-manual-pick {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -357,6 +381,11 @@ button:hover {
     #queue-list li button {
         margin-left: 5px;
         font-size: 0.8em;
+    }
+
+    .button-group {
+        flex-direction: column; /* Stack buttons vertically on mobile */
+        gap: 5px;
     }
 }
 

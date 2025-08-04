@@ -53,12 +53,28 @@
                     <!-- Populated by JS -->
                 </select>
                 <button onclick="adminMakePick()">Make Pick for Team</button>
+                <div id="admin-manual-pick">
+                    <h3>Manual Pick</h3>
+                    <select id="admin-manual-team-select">
+                        <!-- Populated by JS -->
+                    </select>
+                    <input id="admin-manual-player-input" type="text" placeholder="Enter player name">
+                    <select id="admin-manual-position-select">
+                        <option value="QB">QB</option>
+                        <option value="RB">RB</option>
+                        <option value="WR">WR</option>
+                        <option value="TE">TE</option>
+                        <option value="K">K</option>
+                        <option value="DST">DST</option>
+                    </select>
+                    <button onclick="adminManualPick()">Submit Manual Pick</button>
+                </div>
             </div>
             
             <div id="draft-order-controls" style="display:none;">
                 <h3>Draft Order</h3>
                 <ul id="draft-order-list">
-                    <!-- Populated by JS with sortable list -->
+                    <!-- Populated by JS -->
                 </ul>
                 <button onclick="saveDraftOrder()">Save Draft Order</button>
             </div>
@@ -84,8 +100,10 @@
                     <select id="player-select" size="10">
                         <!-- Populated by JS -->
                     </select>
-                    <button id="pick-btn" onclick="makePick()" style="display:none;">Make Pick</button>
-                    <button id="queue-btn" onclick="addToQueue()" style="display:none;">Add to Queue</button>
+                    <div class="button-group">
+                        <button id="pick-btn" onclick="makePick()" style="display:none;">Make Pick</button>
+                        <button id="queue-btn" onclick="addToQueue()" style="display:none;">Add to Queue</button>
+                    </div>
                 </div>
                 <div id="player-queue" style="display: none;">
                     <h3>My Player Queue</h3>
