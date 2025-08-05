@@ -84,6 +84,7 @@ button:hover {
     min-width: 150px;
     white-space: normal;
     word-wrap: break-word;
+    position: relative;
 }
 
 #draft-grid th {
@@ -140,7 +141,7 @@ button:hover {
     display: block; /* Display on new line under team name */
 }
 
-/* Admin Password Modal */
+/* Admin Password Modal and Spot Assignment Modal */
 .modal {
     display: none;
     position: fixed;
@@ -169,7 +170,7 @@ button:hover {
     margin-bottom: 20px;
 }
 
-#admin-password-input {
+#admin-password-input, #assign-spot-team-select {
     width: 100%;
     box-sizing: border-box;
 }
@@ -289,6 +290,21 @@ button:hover {
     width: 100%;
 }
 
+/* Assigned Spot Styling */
+.assigned {
+    border: 2px solid #ff110081 !important; /* Gold border for assigned spots */
+    /*background-color: #444444 !important;  Darker background to highlight */
+}
+
+.assigned-text {
+    font-size: 0.8em;
+    color: #ff110081;
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
 /* Mobile-Specific Styles */
 @media (max-width: 768px) {
     body {
@@ -337,7 +353,6 @@ button:hover {
         text-align: center;
     }
 
-    /* Make admin controls and other sections stack vertically */
     #admin-controls, #draft-order-controls, #pre-assign-controls, #admin-manual-pick {
         display: flex;
         flex-direction: column;
@@ -386,6 +401,11 @@ button:hover {
     .button-group {
         flex-direction: column; /* Stack buttons vertically on mobile */
         gap: 5px;
+    }
+
+    .assigned-text {
+        font-size: 0.7em;
+        right: 2px;
     }
 }
 

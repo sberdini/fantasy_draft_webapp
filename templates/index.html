@@ -36,6 +36,21 @@
         </div>
     </div>
     
+    <!-- Draft Spot Assignment Modal -->
+    <div id="assign-spot-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Assign Draft Spot</h2>
+            <p>Assign <span id="assign-spot-info"></span> to:</p>
+            <select id="assign-spot-team-select">
+                <!-- Populated by JS -->
+            </select>
+            <div class="modal-buttons">
+                <button onclick="submitSpotAssignment()">Assign</button>
+                <button onclick="cancelSpotAssignment()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
     <button id="start-btn" onclick="startDraft()" style="display:none;">Start Draft</button>
     
     <div id="draft-board" style="display:none;">

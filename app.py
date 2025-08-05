@@ -28,7 +28,8 @@ draft_state = {
     "paused": False,
     "turn_start_time": None,
     "draft_history": [],
-    "player_queues": {},  # New: {team: []}
+    "player_queues": {},  # {team: []}
+    "assigned_spots": {}  # New: {round: {original_team: assigned_team}}
 }
 
 def get_current_order():
@@ -37,12 +38,17 @@ def get_current_order():
     else:
         return draft_state["teams"][::-1]
 
+def get_assigned_team(round_num, original_team):
+    """Get the team assigned to a specific round and original team, if any."""
+    return draft_state["assigned_spots"].get(round_num, {}).get(original_team, original_team)
+
 def advance_to_next_open_pick():
     num_teams = len(draft_state["teams"])
     while draft_state["current_round"] <= draft_state["num_rounds"]:
         order = get_current_order()
         team = order[draft_state["current_pick"]]
-        if any(p["round"] == draft_state["current_round"] and p["team"] == team for p in draft_state["draft_history"]):
+        assigned_team = get_assigned_team(draft_state["current_round"], team)
+        if any(p["round"] == draft_state["current_round"] and p["display_team"] == team for p in draft_state["draft_history"]):
             draft_state["current_pick"] += 1
             if draft_state["current_pick"] >= num_teams:
                 draft_state["current_round"] += 1
@@ -60,7 +66,8 @@ def reverse_to_previous_open_pick():
     while draft_state["current_round"] >= 1:
         order = get_current_order()
         team = order[draft_state["current_pick"]]
-        if any(p["round"] == draft_state["current_round"] and p["team"] == team for p in draft_state["draft_history"]):
+        assigned_team = get_assigned_team(draft_state["current_round"], team)
+        if any(p["round"] == draft_state["current_round"] and p["display_team"] == team for p in draft_state["draft_history"]):
             draft_state["current_pick"] -= 1
             if draft_state["current_pick"] < 0:
                 draft_state["current_round"] -= 1
@@ -132,17 +139,16 @@ def handle_assign_pick(data):
         if player and team in draft_state["rosters"] and 1 <= round_num <= draft_state["num_rounds"]:
             pick_in_round = draft_state["teams"].index(team) + 1 if round_num % 2 == 1 else len(draft_state["teams"]) - draft_state["teams"].index(team)
             overall_pick = (round_num - 1) * len(draft_state["teams"]) + pick_in_round
-            if not any(p["round"] == round_num and p["team"] == team for p in draft_state["draft_history"]):
+            if not any(p["round"] == round_num and p["display_team"] == team for p in draft_state["draft_history"]):
                 draft_state["available_players"].remove(player)
                 draft_state["rosters"][team].append(player)
                 draft_state["draft_history"].append({
                     "round": round_num,
                     "overall_pick": overall_pick,
-                    "team": team,
+                    "display_team": team,
+                    "roster_team": team,
                     "player": player,
                     "time_taken": 0
-                    
-                    
                 })
                 draft_state["draft_history"].sort(key=lambda x: x["overall_pick"])
                 emit('update_draft', draft_state, broadcast=True)
@@ -150,6 +156,39 @@ def handle_assign_pick(data):
                 emit('error', {'msg': 'Spot already filled'})
         else:
             emit('error', {'msg': 'Invalid assignment'})
+
+@socketio.on('assign_draft_spot')
+def handle_assign_draft_spot(data):
+    if 'is_admin' in session and session['is_admin'] and draft_state["started"] and not draft_state["paused"]:
+        try:
+            round_num = int(data['round'])
+            original_team = data['original_team']
+            assigned_team = data['assigned_team']
+            if round_num < draft_state["current_round"] or round_num > draft_state["num_rounds"]:
+                emit('error', {'msg': 'Invalid round for assignment'})
+                return
+            if original_team not in draft_state["teams"] or assigned_team not in draft_state["teams"]:
+                emit('error', {'msg': 'Invalid team(s) for assignment'})
+                return
+            if any(p["round"] == round_num and p["display_team"] == original_team for p in draft_state["draft_history"]):
+                emit('error', {'msg': 'Cannot assign already made pick'})
+                return
+            if round_num == draft_state["current_round"]:
+                order = get_current_order()
+                pick_index = order.index(original_team)
+                if pick_index < draft_state["current_pick"]:
+                    emit('error', {'msg': 'Cannot assign past or current pick in the current round'})
+                    return
+            # Initialize round in assigned_spots if not exists
+            if round_num not in draft_state["assigned_spots"]:
+                draft_state["assigned_spots"][round_num] = {}
+            # Assign the spot
+            draft_state["assigned_spots"][round_num][original_team] = assigned_team
+            emit('update_draft', draft_state, broadcast=True)
+        except (KeyError, ValueError):
+            emit('error', {'msg': 'Invalid assignment parameters'})
+    else:
+        emit('error', {'msg': 'Action not allowed: Draft not started, paused, or not admin'})
 
 @socketio.on('start_draft')
 def handle_start():
@@ -170,13 +209,13 @@ def handle_revert():
     if 'is_admin' in session and session['is_admin'] and draft_state["draft_history"]:
         last_pick = draft_state["draft_history"].pop()
         player = last_pick["player"]
-        team = last_pick["team"]
+        team = last_pick["roster_team"]
         draft_state["rosters"][team].pop()
         draft_state["available_players"].append(player)
         # Set to last pick's position before reversing
         draft_state["current_round"] = last_pick["round"]
         order = get_current_order()
-        draft_state["current_pick"] = order.index(last_pick["team"])
+        draft_state["current_pick"] = order.index(last_pick["display_team"])
         reverse_to_previous_open_pick()  # Now it will stay at the reverted spot since it's open
         draft_state["turn_start_time"] = time.time()
         emit('update_draft', draft_state, broadcast=True)
@@ -195,6 +234,7 @@ def handle_reset_draft():
         draft_state["turn_start_time"] = None
         draft_state["draft_history"] = []
         draft_state["player_queues"] = {}  # Reset queues
+        draft_state["assigned_spots"] = {}  # Reset assigned spots
         emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('add_to_queue')
@@ -219,22 +259,23 @@ def handle_admin_pick(data):
     if 'is_admin' in session and session['is_admin'] and draft_state["started"] and not draft_state["paused"]:
         current_order = get_current_order()
         current_team = current_order[draft_state["current_pick"]]
+        assigned_team = get_assigned_team(draft_state["current_round"], current_team)
         if data['for_team']:
-            current_team = data['for_team']
+            assigned_team = data['for_team']
         player_name = data['player']
         player = next((p for p in draft_state["available_players"] if p['name'] == player_name), None)
         if player:
             draft_state["available_players"].remove(player)
-            draft_state["rosters"][current_team].append(player)
+            draft_state["rosters"][assigned_team].append(player)
             overall_pick = ((draft_state["current_round"] - 1) * len(draft_state["teams"])) + draft_state["current_pick"] + 1
             draft_state["draft_history"].append({
                 "round": draft_state["current_round"],
                 "overall_pick": overall_pick,
-                "team": current_team,
+                "display_team": current_team,
+                "roster_team": assigned_team,
                 "player": player,
-                "time_taken": time.time() - draft_state["turn_start_time"]  # Record time taken for this pick
+                "time_taken": time.time() - draft_state["turn_start_time"]
             })
-            # Remove drafted player from all queues
             for queue_team in draft_state["player_queues"]:
                 draft_state["player_queues"][queue_team] = [p for p in draft_state["player_queues"][queue_team] if p['name'] != player_name]
             advance_to_next_open_pick()
@@ -252,34 +293,33 @@ def handle_admin_manual_pick(data):
     if 'is_admin' in session and session['is_admin'] and draft_state["started"] and not draft_state["paused"]:
         current_order = get_current_order()
         current_team = current_order[draft_state["current_pick"]]
+        assigned_team = get_assigned_team(draft_state["current_round"], current_team)
         if data['for_team']:
-            current_team = data['for_team']
+            assigned_team = data['for_team']
         player_name = data['player'].strip()
-        position = data['position']  # e.g., 'QB'
-        # Check if player exists in available_players
+        position = data['position']
         player = next((p for p in draft_state["available_players"] if p['name'].lower() == player_name.lower()), None)
         if not player:
-            # Create a custom player if not found
             player = {
                 'name': player_name,
                 'pos': position,
-                'team': 'Custom',  # Placeholder team for custom players
-                'bye': 0,  # Placeholder bye for custom players
-                'rank': 9999  # High rank to sort at the end
+                'team': 'Custom',
+                'bye': 0,
+                'rank': 9999
             }
         else:
             draft_state["available_players"].remove(player)
-        if current_team in draft_state["rosters"]:
-            draft_state["rosters"][current_team].append(player)
+        if assigned_team in draft_state["rosters"]:
+            draft_state["rosters"][assigned_team].append(player)
             overall_pick = ((draft_state["current_round"] - 1) * len(draft_state["teams"])) + draft_state["current_pick"] + 1
             draft_state["draft_history"].append({
                 "round": draft_state["current_round"],
                 "overall_pick": overall_pick,
-                "team": current_team,
+                "display_team": current_team,
+                "roster_team": assigned_team,
                 "player": player,
                 "time_taken": time.time() - draft_state["turn_start_time"]
             })
-            # Remove from queues if it was in available_players
             for queue_team in draft_state["player_queues"]:
                 draft_state["player_queues"][queue_team] = [p for p in draft_state["player_queues"][queue_team] if p['name'].lower() != player_name.lower()]
             advance_to_next_open_pick()
@@ -297,41 +337,40 @@ def handle_admin_manual_pick(data):
 @socketio.on('make_pick')
 def handle_pick(data):
     if not draft_state["started"] or draft_state["paused"] or 'team' not in session:
+        emit('error', {'msg': 'Draft not started, paused, or no team assigned'})
         return
     current_order = get_current_order()
     current_team = current_order[draft_state["current_pick"]]
-    if session['team'] != current_team:
-        return  # Not your turn
+    assigned_team = get_assigned_team(draft_state["current_round"], current_team)
+    if session['team'] != assigned_team and not session.get('is_admin', False):
+        emit('error', {'msg': 'Not your turn'})
+        return
 
     player_name = data['player']
     player = next((p for p in draft_state["available_players"] if p['name'] == player_name), None)
     if player:
         draft_state["available_players"].remove(player)
-        draft_state["rosters"][current_team].append(player)
-        
-        # Add to draft history
+        draft_state["rosters"][assigned_team].append(player)
         overall_pick = ((draft_state["current_round"] - 1) * len(draft_state["teams"])) + draft_state["current_pick"] + 1
         draft_state["draft_history"].append({
             "round": draft_state["current_round"],
             "overall_pick": overall_pick,
-            "team": current_team,
+            "display_team": current_team,
+            "roster_team": assigned_team,
             "player": player,
-            "time_taken": time.time() - draft_state["turn_start_time"]  # Record time taken for this pick
+            "time_taken": time.time() - draft_state["turn_start_time"]
         })
-        
-        # Remove drafted player from all queues
         for queue_team in draft_state["player_queues"]:
             draft_state["player_queues"][queue_team] = [p for p in draft_state["player_queues"][queue_team] if p['name'] != player_name]
-        
-        # Advance to next open pick
         advance_to_next_open_pick()
         if draft_state["current_round"] > draft_state["num_rounds"]:
-            draft_state["started"] = False  # Draft over
+            draft_state["started"] = False
             draft_state["turn_start_time"] = None
         else:
             draft_state["turn_start_time"] = time.time()
-        
         emit('update_draft', draft_state, broadcast=True)
+    else:
+        emit('error', {'msg': 'Player not found or already drafted'})
 
 @socketio.on('connect')
 def handle_connect():

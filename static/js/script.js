@@ -4,6 +4,7 @@ const socket = io();
 let myTeam = null;
 let timerInterval = null;
 let pendingJoinData = null; // Store join data while waiting for password
+let pendingSpotAssignment = null; // Store round and original_team for assignment modal
 
 // Clear localStorage on page load to reset roles for testing
 window.addEventListener('load', () => {
@@ -70,6 +71,48 @@ function submitAdminPassword() {
 function cancelAdminPassword() {
     document.getElementById('admin-password-modal').style.display = 'none';
     pendingJoinData = null;
+}
+
+function openSpotAssignmentModal(round, original_team) {
+    const isAdmin = localStorage.getItem('is_admin') === 'true';
+    if (!isAdmin) {
+        alert('Only admins can assign draft spots.');
+        return;
+    }
+    pendingSpotAssignment = { round, original_team };
+    document.getElementById('assign-spot-info').textContent = `Round ${round}, ${original_team}`;
+    const teamSelect = document.getElementById('assign-spot-team-select');
+    teamSelect.innerHTML = '';
+    window.draftState.teams.forEach(team => {
+        const opt = document.createElement('option');
+        opt.value = team;
+        opt.text = team;
+        teamSelect.appendChild(opt);
+    });
+    document.getElementById('assign-spot-modal').style.display = 'flex';
+    teamSelect.focus();
+}
+
+function submitSpotAssignment() {
+    const assigned_team = document.getElementById('assign-spot-team-select')?.value;
+    if (!assigned_team) {
+        alert('Please select a team.');
+        return;
+    }
+    if (pendingSpotAssignment) {
+        socket.emit('assign_draft_spot', {
+            round: pendingSpotAssignment.round,
+            original_team: pendingSpotAssignment.original_team,
+            assigned_team
+        });
+        document.getElementById('assign-spot-modal').style.display = 'none';
+        pendingSpotAssignment = null;
+    }
+}
+
+function cancelSpotAssignment() {
+    document.getElementById('assign-spot-modal').style.display = 'none';
+    pendingSpotAssignment = null;
 }
 
 function startDraft() {
@@ -174,7 +217,6 @@ function filterPlayers() {
     const select = document.getElementById('player-select');
     select.innerHTML = ''; // Clear current options
 
-    // Filter and repopulate with matching players
     const filteredPlayers = window.draftState?.available_players
         ?.sort((a, b) => a.rank - b.rank)
         .filter(p => {
@@ -258,14 +300,12 @@ socket.on('update_draft', (state) => {
     } else {
         document.getElementById('start-btn').style.display = isAdmin ? 'block' : 'none';
         document.getElementById('export-btn').style.display = state.current_round > state.num_rounds ? 'block' : 'none';
-        // Show join section if draft is reset
         if (!localStorage.getItem('myTeam')) {
             document.getElementById('join-section').style.display = 'block';
             document.getElementById('draft-board').style.display = 'none';
         }
     }
 
-    // Show admin controls if admin
     document.getElementById('admin-controls').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('draft-order-controls').style.display = (isAdmin && !state.started) ? 'block' : 'none';
     document.getElementById('pre-assign-controls').style.display = (isAdmin && !state.started) ? 'block' : 'none';
@@ -277,16 +317,17 @@ socket.on('update_draft', (state) => {
         const manualTeamSelect = document.getElementById('admin-manual-team-select');
         manualTeamSelect.innerHTML = '';
         const order = state.current_round % 2 === 1 ? state.teams : state.teams.slice().reverse();
-        const currentTeam = state.started && state.current_round <= state.num_rounds ? order[state.current_pick] : (state.teams[0] || '');
+        const currentTeam = state.started && state.current_round <= state.num_rounds ? 
+            (state.assigned_spots[state.current_round]?.[order[state.current_pick]] || order[state.current_pick]) : 
+            (state.teams[0] || '');
         state.teams.forEach(team => {
             const opt = document.createElement('option');
             opt.value = team;
             opt.text = team;
             if (team === currentTeam) {
-                opt.selected = true; // Default to current picking team
+                opt.selected = true;
             }
             teamSelect.appendChild(opt);
-
             const manualOpt = document.createElement('option');
             manualOpt.value = team;
             manualOpt.text = team;
@@ -340,15 +381,15 @@ socket.on('update_draft', (state) => {
         });
     }
 
-    // Update round and team for both views
     document.getElementById('current-round-live').textContent = state.current_round;
     document.getElementById('current-round-board').textContent = state.current_round;
     const order = state.current_round % 2 === 1 ? state.teams : state.teams.slice().reverse();
-    const currentTeam = order[state.current_pick] || 'Draft Over';
+    const currentTeam = state.started && state.current_round <= state.num_rounds ? 
+        (state.assigned_spots[state.current_round]?.[order[state.current_pick]] || order[state.current_pick]) : 
+        'Draft Over';
     document.getElementById('current-team-live').textContent = currentTeam;
     document.getElementById('current-team-board').textContent = currentTeam;
 
-    // Toggle draft status and completed banner
     const draftStatus = document.getElementById('draft-status');
     const draftCompleteBanner = document.getElementById('draft-complete-banner');
     if (state.current_round > state.num_rounds && !state.started) {
@@ -359,7 +400,6 @@ socket.on('update_draft', (state) => {
         draftCompleteBanner.style.display = 'none';
     }
 
-    // Update available players
     const select = document.getElementById('player-select');
     select.innerHTML = '';
     state.available_players.sort((a, b) => a.rank - b.rank).forEach(p => {
@@ -369,23 +409,16 @@ socket.on('update_draft', (state) => {
         select.appendChild(opt);
     });
 
-    // Show pick button only if it's my turn or admin
     document.getElementById('pick-btn').style.display = ((myTeam === currentTeam || isAdmin) && state.started && !state.paused) ? 'block' : 'none';
-
-    // Show Add to Queue button for non-spectators when draft hasn't ended
     document.getElementById('queue-btn').style.display = (!isSpectator && state.current_round <= state.num_rounds) ? 'block' : 'none';
-
-    // Show player queue for non-spectators
     document.getElementById('player-queue').style.display = (!isSpectator) ? 'block' : 'none';
 
-    // Clear and update queue list
     const queueList = document.getElementById('queue-list');
     queueList.innerHTML = '';
     const queue = state.player_queues[myTeam] || [];
     const draftedPlayers = new Set(state.draft_history.map(p => p.player.name));
     queue.forEach(p => {
         if (draftedPlayers.has(p.name)) {
-            // Automatically remove drafted player from queue
             removeFromQueue(p.name);
             return;
         }
@@ -406,7 +439,6 @@ socket.on('update_draft', (state) => {
         queueList.appendChild(li);
     });
 
-    // Update rosters
     const rostersDiv = document.getElementById('rosters');
     rostersDiv.innerHTML = '';
     state.teams.forEach(team => {
@@ -415,14 +447,13 @@ socket.on('update_draft', (state) => {
         rostersDiv.appendChild(div);
     });
 
-    // Update draft board grid to ensure reverted picks leave slots blank
     const table = document.getElementById('draft-grid');
     const thead = table.querySelector('thead tr');
     thead.innerHTML = '<th>Round</th>'; // Reset headers
     state.teams.forEach(team => {
         const th = document.createElement('th');
         const totalTime = state.draft_history
-            .filter(p => p.team === team)
+            .filter(p => p.roster_team === team)
             .reduce((sum, p) => sum + p.time_taken, 0);
         th.innerHTML = `${team}<br><span class="total-time">${formatTime(totalTime)}</span>`;
         thead.appendChild(th);
@@ -438,7 +469,9 @@ socket.on('update_draft', (state) => {
 
         state.teams.forEach(team => {
             const td = document.createElement('td');
-            const pick = state.draft_history.find(p => p.round === round && p.team === team);
+            td.dataset.round = round;
+            td.dataset.team = team;
+            const pick = state.draft_history.find(p => p.round === round && p.display_team === team);
             if (pick && pick.player) {
                 const player = pick.player;
                 const nameParts = player.name.split(' ');
@@ -450,19 +483,26 @@ socket.on('update_draft', (state) => {
             } else {
                 td.innerHTML = '';
             }
+            const assigned_team = state.assigned_spots[round]?.[team];
+            if (assigned_team && assigned_team !== team) {
+                td.classList.add('assigned');
+                td.innerHTML += `<span class="assigned-text">Traded to ${assigned_team}</span>`;
+            }
+            if (isAdmin && !pick && (round > state.current_round || (round === state.current_round && order.indexOf(team) >= state.current_pick))) {
+                td.style.cursor = 'pointer';
+                td.onclick = () => openSpotAssignmentModal(round, team);
+            }
             tr.appendChild(td);
         });
         tbody.appendChild(tr);
     }
 
-    // Start timer only if not paused
-    if (!state.paused) {
+    if (!state.paused && state.started) {
         startTimer(state.turn_start_time);
     } else if (timerInterval) {
         clearInterval(timerInterval);
     }
 
-    // For spectators, hide join section and show board by default, hide buttons
     if (isSpectator) {
         document.getElementById('join-section').style.display = 'none';
         document.getElementById('start-btn').style.display = 'none';
