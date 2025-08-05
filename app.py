@@ -139,7 +139,10 @@ def handle_assign_pick(data):
                     "round": round_num,
                     "overall_pick": overall_pick,
                     "team": team,
-                    "player": player
+                    "player": player,
+                    "time_taken": 0
+                    
+                    
                 })
                 draft_state["draft_history"].sort(key=lambda x: x["overall_pick"])
                 emit('update_draft', draft_state, broadcast=True)
