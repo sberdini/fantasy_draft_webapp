@@ -43,10 +43,9 @@ function joinDraft() {
         document.getElementById('join-section').style.display = 'none';
         document.getElementById('draft-board').style.display = 'block';
     } else if (joinType === 'admin') {
-        // Show password modal
         pendingJoinData = { team: team, is_admin: true };
         document.getElementById('admin-password-modal').style.display = 'flex';
-        document.getElementById('admin-password-input').value = ''; // Clear input
+        document.getElementById('admin-password-input').value = '';
         document.getElementById('admin-password-input').focus();
     }
 }
@@ -215,7 +214,7 @@ function draftFromQueue(player) {
 function filterPlayers() {
     const input = document.getElementById('player-search')?.value.toLowerCase() || '';
     const select = document.getElementById('player-select');
-    select.innerHTML = ''; // Clear current options
+    select.innerHTML = '';
 
     const filteredPlayers = window.draftState?.available_players
         ?.sort((a, b) => a.rank - b.rank)
@@ -316,10 +315,10 @@ socket.on('update_draft', (state) => {
         teamSelect.innerHTML = '';
         const manualTeamSelect = document.getElementById('admin-manual-team-select');
         manualTeamSelect.innerHTML = '';
-        const order = state.current_round % 2 === 1 ? state.teams : state.teams.slice().reverse();
+        const order = state.current_round <= 2 ? state.teams : (state.current_round % 2 === 1 ? state.teams.slice().reverse() : state.teams);
         const currentTeam = state.started && state.current_round <= state.num_rounds ? 
             (state.assigned_spots[state.current_round]?.[order[state.current_pick]] || order[state.current_pick]) : 
-            (state.teams[0] || '');
+            (state.teams[0] || 'Draft Over');
         state.teams.forEach(team => {
             const opt = document.createElement('option');
             opt.value = team;
@@ -383,7 +382,7 @@ socket.on('update_draft', (state) => {
 
     document.getElementById('current-round-live').textContent = state.current_round;
     document.getElementById('current-round-board').textContent = state.current_round;
-    const order = state.current_round % 2 === 1 ? state.teams : state.teams.slice().reverse();
+    const order = state.current_round <= 2 ? state.teams : (state.current_round % 2 === 1 ? state.teams.slice().reverse() : state.teams);
     const currentTeam = state.started && state.current_round <= state.num_rounds ? 
         (state.assigned_spots[state.current_round]?.[order[state.current_pick]] || order[state.current_pick]) : 
         'Draft Over';
@@ -454,7 +453,7 @@ socket.on('update_draft', (state) => {
         const th = document.createElement('th');
         const totalTime = state.draft_history
             .filter(p => p.roster_team === team)
-            .reduce((sum, p) => sum + p.time_taken, 0);
+            .reduce((sum, p) => sum + (p.time_taken || 0), 0);
         th.innerHTML = `${team}<br><span class="total-time">${formatTime(totalTime)}</span>`;
         thead.appendChild(th);
     });
@@ -480,13 +479,18 @@ socket.on('update_draft', (state) => {
                 td.innerHTML = `${firstName}<br>${lastName}<br>(${player.pos}, ${player.team}) - Bye: ${player.bye}`;
                 const posClass = `pos-${player.pos.toLowerCase()}`;
                 td.classList.add(posClass);
+                const assigned_team = state.assigned_spots[round]?.[team];
+                if (assigned_team && assigned_team !== team) {
+                    td.classList.add('assigned');
+                    td.innerHTML += `<span class="assigned-text">Traded to ${assigned_team}</span>`;
+                }
             } else {
                 td.innerHTML = '';
-            }
-            const assigned_team = state.assigned_spots[round]?.[team];
-            if (assigned_team && assigned_team !== team) {
-                td.classList.add('assigned');
-                td.innerHTML += `<span class="assigned-text">Traded to ${assigned_team}</span>`;
+                const assigned_team = state.assigned_spots[round]?.[team];
+                if (assigned_team && assigned_team !== team) {
+                    td.classList.add('assigned');
+                    td.innerHTML = `<span class="assigned-text">Traded to ${assigned_team}</span>`;
+                }
             }
             if (isAdmin && !pick && (round > state.current_round || (round === state.current_round && order.indexOf(team) >= state.current_pick))) {
                 td.style.cursor = 'pointer';

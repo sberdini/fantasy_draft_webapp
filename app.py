@@ -33,10 +33,12 @@ draft_state = {
 }
 
 def get_current_order():
-    if draft_state["current_round"] % 2 == 1:
-        return draft_state["teams"]
+    round_num = draft_state["current_round"]
+    if round_num == 1 or round_num == 2:
+        return draft_state["teams"]  # Linear order: Team1, Team2, ..., TeamN
     else:
-        return draft_state["teams"][::-1]
+        # Start snake draft at Round 3: odd rounds reverse, even rounds forward
+        return draft_state["teams"][::-1] if round_num % 2 == 1 else draft_state["teams"]
 
 def get_assigned_team(round_num, original_team):
     """Get the team assigned to a specific round and original team, if any."""
@@ -47,7 +49,6 @@ def advance_to_next_open_pick():
     while draft_state["current_round"] <= draft_state["num_rounds"]:
         order = get_current_order()
         team = order[draft_state["current_pick"]]
-        assigned_team = get_assigned_team(draft_state["current_round"], team)
         if any(p["round"] == draft_state["current_round"] and p["display_team"] == team for p in draft_state["draft_history"]):
             draft_state["current_pick"] += 1
             if draft_state["current_pick"] >= num_teams:
@@ -66,7 +67,6 @@ def reverse_to_previous_open_pick():
     while draft_state["current_round"] >= 1:
         order = get_current_order()
         team = order[draft_state["current_pick"]]
-        assigned_team = get_assigned_team(draft_state["current_round"], team)
         if any(p["round"] == draft_state["current_round"] and p["display_team"] == team for p in draft_state["draft_history"]):
             draft_state["current_pick"] -= 1
             if draft_state["current_pick"] < 0:
@@ -216,7 +216,7 @@ def handle_revert():
         draft_state["current_round"] = last_pick["round"]
         order = get_current_order()
         draft_state["current_pick"] = order.index(last_pick["display_team"])
-        reverse_to_previous_open_pick()  # Now it will stay at the reverted spot since it's open
+        reverse_to_previous_open_pick()
         draft_state["turn_start_time"] = time.time()
         emit('update_draft', draft_state, broadcast=True)
 
@@ -321,7 +321,7 @@ def handle_admin_manual_pick(data):
                 "time_taken": time.time() - draft_state["turn_start_time"]
             })
             for queue_team in draft_state["player_queues"]:
-                draft_state["player_queues"][queue_team] = [p for p in draft_state["player_queues"][queue_team] if p['name'].lower() != player_name.lower()]
+                draft_state["player_queues"][queue_team] = [p for p in draft_state["player_queues"][queue_team] if p['name'].lower() == player_name.lower()]
             advance_to_next_open_pick()
             if draft_state["current_round"] > draft_state["num_rounds"]:
                 draft_state["started"] = False
