@@ -1592,8 +1592,8 @@ players = [
     "rank": 228,
     "name": "Keenan Allen",
     "pos": "WR",
-    "team": "FA",
-    "bye": 0
+    "team": "LAC",
+    "bye": 12
   },
   {
     "rank": 229,
@@ -2390,8 +2390,8 @@ players = [
     "rank": 342,
     "name": "John Metchie III",
     "pos": "WR",
-    "team": "HOU",
-    "bye": 6
+    "team": "PHI",
+    "bye": 9
   },
   {
     "rank": 343,
@@ -3482,8 +3482,8 @@ players = [
     "rank": 498,
     "name": "Harrison Bryant",
     "pos": "TE",
-    "team": "PHI",
-    "bye": 9
+    "team": "HOU",
+    "bye": 6
   },
   {
     "rank": 499,
