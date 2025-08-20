@@ -1,4 +1,4 @@
-//const socket = io('https://fantasy-draft-app-466614.ue.r.appspot.com/', { transports: ['websocket'] });
+
 const socket = io();
 
 let myTeam = null;
