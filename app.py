@@ -18,8 +18,8 @@ ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Braj2025')
 
 # Draft state
 draft_state = {
-    "teams": [],
-    "rosters": {},
+    "teams": [],  # Stores original case team names
+    "rosters": {},  # Key: lowercase team name, Value: list of players
     "available_players": players.copy(),
     "current_round": 1,
     "current_pick": 0,
@@ -27,10 +27,19 @@ draft_state = {
     "started": False,
     "paused": False,
     "turn_start_time": None,
-    "draft_history": [],
-    "player_queues": {},  # {team: []}
-    "assigned_spots": {}  # New: {round: {original_team: assigned_team}}
+    "draft_history": [],  # Uses lowercase team names for display_team, roster_team
+    "player_queues": {},  # Key: lowercase team name, Value: list of players
+    "assigned_spots": {},  # Key: round number, Value: {lowercase original_team: lowercase assigned_team}
+    "team_name_map": {}  # Key: lowercase team name, Value: original case team name
 }
+
+def normalize_team_name(team_name):
+    """Normalize team name to lowercase for internal use."""
+    return team_name.lower() if team_name else ''
+
+def get_original_team_name(normalized_team_name):
+    """Get the original case team name from the normalized (lowercase) name."""
+    return draft_state["team_name_map"].get(normalized_team_name, normalized_team_name)
 
 def get_current_order():
     round_num = draft_state["current_round"]
@@ -42,14 +51,17 @@ def get_current_order():
 
 def get_assigned_team(round_num, original_team):
     """Get the team assigned to a specific round and original team, if any."""
-    return draft_state["assigned_spots"].get(round_num, {}).get(original_team, original_team)
+    normalized_original_team = normalize_team_name(original_team)
+    assigned_team = draft_state["assigned_spots"].get(round_num, {}).get(normalized_original_team, normalized_original_team)
+    return get_original_team_name(assigned_team)
 
 def advance_to_next_open_pick():
     num_teams = len(draft_state["teams"])
     while draft_state["current_round"] <= draft_state["num_rounds"]:
         order = get_current_order()
         team = order[draft_state["current_pick"]]
-        if any(p["round"] == draft_state["current_round"] and p["display_team"] == team for p in draft_state["draft_history"]):
+        normalized_team = normalize_team_name(team)
+        if any(p["round"] == draft_state["current_round"] and p["display_team"] == normalized_team for p in draft_state["draft_history"]):
             draft_state["current_pick"] += 1
             if draft_state["current_pick"] >= num_teams:
                 draft_state["current_round"] += 1
@@ -67,7 +79,8 @@ def reverse_to_previous_open_pick():
     while draft_state["current_round"] >= 1:
         order = get_current_order()
         team = order[draft_state["current_pick"]]
-        if any(p["round"] == draft_state["current_round"] and p["display_team"] == team for p in draft_state["draft_history"]):
+        normalized_team = normalize_team_name(team)
+        if any(p["round"] == draft_state["current_round"] and p["display_team"] == normalized_team for p in draft_state["draft_history"]):
             draft_state["current_pick"] -= 1
             if draft_state["current_pick"] < 0:
                 draft_state["current_round"] -= 1
@@ -89,6 +102,10 @@ def handle_join(data):
         emit('update_draft', draft_state)
         return
     team_name = data.get('team', '')
+    normalized_team_name = normalize_team_name(team_name)
+    if not team_name:
+        emit('join_error', {'msg': 'Team name required'})
+        return
     if data.get('is_admin'):
         password = data.get('password', '')
         if password != ADMIN_PASSWORD:
@@ -96,57 +113,59 @@ def handle_join(data):
             return
         session['is_admin'] = True
         if team_name:
-            if draft_state["started"] and team_name not in draft_state["teams"]:
+            if draft_state["started"] and normalized_team_name not in [normalize_team_name(t) for t in draft_state["teams"]]:
                 emit('join_error', {'msg': 'Draft has started, no new teams can join'})
                 return
-            if team_name not in draft_state["teams"]:
-                draft_state["teams"].append(team_name)
-                draft_state["rosters"][team_name] = []
-                draft_state["player_queues"][team_name] = []  # Initialize queue for new team
-            session['team'] = team_name
+            if normalized_team_name not in [normalize_team_name(t) for t in draft_state["teams"]]:
+                draft_state["teams"].append(team_name)  # Store original case
+                draft_state["rosters"][normalized_team_name] = []
+                draft_state["player_queues"][normalized_team_name] = []
+                draft_state["team_name_map"][normalized_team_name] = team_name
+            session['team'] = team_name  # Store original case in session
         else:
             session['team'] = 'Admin'
         emit('update_draft', draft_state, broadcast=True)
     else:
-        if draft_state["started"] and team_name not in draft_state["teams"]:
+        if draft_state["started"] and normalized_team_name not in [normalize_team_name(t) for t in draft_state["teams"]]:
             emit('join_error', {'msg': 'Draft has started, no new teams can join'})
             return
-        if not team_name:
-            emit('join_error', {'msg': 'Team name required'})
-            return
-        if team_name not in draft_state["teams"]:
-            draft_state["teams"].append(team_name)
-            draft_state["rosters"][team_name] = []
-            draft_state["player_queues"][team_name] = []  # Initialize queue for new team
-        session['team'] = team_name
+        if normalized_team_name not in [normalize_team_name(t) for t in draft_state["teams"]]:
+            draft_state["teams"].append(team_name)  # Store original case
+            draft_state["rosters"][normalized_team_name] = []
+            draft_state["player_queues"][normalized_team_name] = []
+            draft_state["team_name_map"][normalized_team_name] = team_name
+        session['team'] = team_name  # Store original case in session
         emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('reorder_teams')
 def handle_reorder_teams(data):
     new_order = data['new_order']
     if 'is_admin' in session and session['is_admin'] and not draft_state["started"]:
-        if sorted(new_order) == sorted(draft_state["teams"]):
-            draft_state["teams"] = new_order
+        normalized_new_order = [normalize_team_name(t) for t in new_order]
+        normalized_teams = [normalize_team_name(t) for t in draft_state["teams"]]
+        if sorted(normalized_new_order) == sorted(normalized_teams):
+            draft_state["teams"] = new_order  # Preserve original case
             emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('assign_pick')
 def handle_assign_pick(data):
     if 'is_admin' in session and session['is_admin'] and not draft_state["started"]:
         team = data['team']
+        normalized_team = normalize_team_name(team)
         player_name = data['player']
         round_num = data['round']
         player = next((p for p in draft_state["available_players"] if p['name'] == player_name), None)
-        if player and team in draft_state["rosters"] and 1 <= round_num <= draft_state["num_rounds"]:
-            pick_in_round = draft_state["teams"].index(team) + 1 if round_num % 2 == 1 else len(draft_state["teams"]) - draft_state["teams"].index(team)
+        if player and normalized_team in draft_state["rosters"] and 1 <= round_num <= draft_state["num_rounds"]:
+            pick_in_round = draft_state["teams"].index(get_original_team_name(normalized_team)) + 1 if round_num <= 2 else len(draft_state["teams"]) - draft_state["teams"].index(get_original_team_name(normalized_team)) if round_num % 2 == 0 else draft_state["teams"].index(get_original_team_name(normalized_team)) + 1
             overall_pick = (round_num - 1) * len(draft_state["teams"]) + pick_in_round
-            if not any(p["round"] == round_num and p["display_team"] == team for p in draft_state["draft_history"]):
+            if not any(p["round"] == round_num and p["display_team"] == normalized_team for p in draft_state["draft_history"]):
                 draft_state["available_players"].remove(player)
-                draft_state["rosters"][team].append(player)
+                draft_state["rosters"][normalized_team].append(player)
                 draft_state["draft_history"].append({
                     "round": round_num,
                     "overall_pick": overall_pick,
-                    "display_team": team,
-                    "roster_team": team,
+                    "display_team": normalized_team,
+                    "roster_team": normalized_team,
                     "player": player,
                     "time_taken": 0
                 })
@@ -163,19 +182,21 @@ def handle_assign_draft_spot(data):
         try:
             round_num = int(data['round'])
             original_team = data['original_team']
+            normalized_original_team = normalize_team_name(original_team)
             assigned_team = data['assigned_team']
+            normalized_assigned_team = normalize_team_name(assigned_team)
             if round_num < draft_state["current_round"] or round_num > draft_state["num_rounds"]:
                 emit('error', {'msg': 'Invalid round for assignment'})
                 return
-            if original_team not in draft_state["teams"] or assigned_team not in draft_state["teams"]:
+            if normalized_original_team not in [normalize_team_name(t) for t in draft_state["teams"]] or normalized_assigned_team not in [normalize_team_name(t) for t in draft_state["teams"]]:
                 emit('error', {'msg': 'Invalid team(s) for assignment'})
                 return
-            if any(p["round"] == round_num and p["display_team"] == original_team for p in draft_state["draft_history"]):
+            if any(p["round"] == round_num and p["display_team"] == normalized_original_team for p in draft_state["draft_history"]):
                 emit('error', {'msg': 'Cannot assign already made pick'})
                 return
             if round_num == draft_state["current_round"]:
                 order = get_current_order()
-                pick_index = order.index(original_team)
+                pick_index = order.index(get_original_team_name(normalized_original_team))
                 if pick_index < draft_state["current_pick"]:
                     emit('error', {'msg': 'Cannot assign past or current pick in the current round'})
                     return
@@ -183,7 +204,7 @@ def handle_assign_draft_spot(data):
             if round_num not in draft_state["assigned_spots"]:
                 draft_state["assigned_spots"][round_num] = {}
             # Assign the spot
-            draft_state["assigned_spots"][round_num][original_team] = assigned_team
+            draft_state["assigned_spots"][round_num][normalized_original_team] = normalized_assigned_team
             emit('update_draft', draft_state, broadcast=True)
         except (KeyError, ValueError):
             emit('error', {'msg': 'Invalid assignment parameters'})
@@ -209,13 +230,13 @@ def handle_revert():
     if 'is_admin' in session and session['is_admin'] and draft_state["draft_history"]:
         last_pick = draft_state["draft_history"].pop()
         player = last_pick["player"]
-        team = last_pick["roster_team"]
-        draft_state["rosters"][team].pop()
+        normalized_team = last_pick["roster_team"]
+        draft_state["rosters"][normalized_team].pop()
         draft_state["available_players"].append(player)
         # Set to last pick's position before reversing
         draft_state["current_round"] = last_pick["round"]
         order = get_current_order()
-        draft_state["current_pick"] = order.index(last_pick["display_team"])
+        draft_state["current_pick"] = order.index(get_original_team_name(last_pick["display_team"]))
         reverse_to_previous_open_pick()
         draft_state["turn_start_time"] = time.time()
         emit('update_draft', draft_state, broadcast=True)
@@ -233,25 +254,28 @@ def handle_reset_draft():
         draft_state["paused"] = False
         draft_state["turn_start_time"] = None
         draft_state["draft_history"] = []
-        draft_state["player_queues"] = {}  # Reset queues
-        draft_state["assigned_spots"] = {}  # Reset assigned spots
+        draft_state["player_queues"] = {}
+        draft_state["assigned_spots"] = {}
+        draft_state["team_name_map"] = {}
         emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('add_to_queue')
 def handle_add_to_queue(data):
     team = session.get('team')
+    normalized_team = normalize_team_name(team)
     player_name = data['player']
     player = next((p for p in draft_state["available_players"] if p['name'] == player_name), None)
-    if team and player and team in draft_state["player_queues"] and player not in draft_state["player_queues"][team]:
-        draft_state["player_queues"][team].append(player)
+    if team and player and normalized_team in draft_state["player_queues"] and player not in draft_state["player_queues"][normalized_team]:
+        draft_state["player_queues"][normalized_team].append(player)
         emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('remove_from_queue')
 def handle_remove_from_queue(data):
     team = session.get('team')
+    normalized_team = normalize_team_name(team)
     player_name = data['player']
-    if team and team in draft_state["player_queues"]:
-        draft_state["player_queues"][team] = [p for p in draft_state["player_queues"][team] if p['name'] != player_name]
+    if team and normalized_team in draft_state["player_queues"]:
+        draft_state["player_queues"][normalized_team] = [p for p in draft_state["player_queues"][normalized_team] if p['name'] != player_name]
         emit('update_draft', draft_state, broadcast=True)
 
 @socketio.on('admin_make_pick')
@@ -259,20 +283,23 @@ def handle_admin_pick(data):
     if 'is_admin' in session and session['is_admin'] and draft_state["started"] and not draft_state["paused"]:
         current_order = get_current_order()
         current_team = current_order[draft_state["current_pick"]]
+        normalized_current_team = normalize_team_name(current_team)
         assigned_team = get_assigned_team(draft_state["current_round"], current_team)
+        normalized_assigned_team = normalize_team_name(assigned_team)
         if data['for_team']:
-            assigned_team = data['for_team']
+            normalized_assigned_team = normalize_team_name(data['for_team'])
+            assigned_team = get_original_team_name(normalized_assigned_team)
         player_name = data['player']
         player = next((p for p in draft_state["available_players"] if p['name'] == player_name), None)
         if player:
             draft_state["available_players"].remove(player)
-            draft_state["rosters"][assigned_team].append(player)
+            draft_state["rosters"][normalized_assigned_team].append(player)
             overall_pick = ((draft_state["current_round"] - 1) * len(draft_state["teams"])) + draft_state["current_pick"] + 1
             draft_state["draft_history"].append({
                 "round": draft_state["current_round"],
                 "overall_pick": overall_pick,
-                "display_team": current_team,
-                "roster_team": assigned_team,
+                "display_team": normalized_current_team,
+                "roster_team": normalized_assigned_team,
                 "player": player,
                 "time_taken": time.time() - draft_state["turn_start_time"]
             })
@@ -293,9 +320,12 @@ def handle_admin_manual_pick(data):
     if 'is_admin' in session and session['is_admin'] and draft_state["started"] and not draft_state["paused"]:
         current_order = get_current_order()
         current_team = current_order[draft_state["current_pick"]]
+        normalized_current_team = normalize_team_name(current_team)
         assigned_team = get_assigned_team(draft_state["current_round"], current_team)
+        normalized_assigned_team = normalize_team_name(assigned_team)
         if data['for_team']:
-            assigned_team = data['for_team']
+            normalized_assigned_team = normalize_team_name(data['for_team'])
+            assigned_team = get_original_team_name(normalized_assigned_team)
         player_name = data['player'].strip()
         position = data['position']
         player = next((p for p in draft_state["available_players"] if p['name'].lower() == player_name.lower()), None)
@@ -309,19 +339,19 @@ def handle_admin_manual_pick(data):
             }
         else:
             draft_state["available_players"].remove(player)
-        if assigned_team in draft_state["rosters"]:
-            draft_state["rosters"][assigned_team].append(player)
+        if normalized_assigned_team in draft_state["rosters"]:
+            draft_state["rosters"][normalized_assigned_team].append(player)
             overall_pick = ((draft_state["current_round"] - 1) * len(draft_state["teams"])) + draft_state["current_pick"] + 1
             draft_state["draft_history"].append({
                 "round": draft_state["current_round"],
                 "overall_pick": overall_pick,
-                "display_team": current_team,
-                "roster_team": assigned_team,
+                "display_team": normalized_current_team,
+                "roster_team": normalized_assigned_team,
                 "player": player,
                 "time_taken": time.time() - draft_state["turn_start_time"]
             })
             for queue_team in draft_state["player_queues"]:
-                draft_state["player_queues"][queue_team] = [p for p in draft_state["player_queues"][queue_team] if p['name'].lower() == player_name.lower()]
+                draft_state["player_queues"][queue_team] = [p for p in draft_state["player_queues"][queue_team] if p['name'].lower() != player_name.lower()]
             advance_to_next_open_pick()
             if draft_state["current_round"] > draft_state["num_rounds"]:
                 draft_state["started"] = False
@@ -341,8 +371,10 @@ def handle_pick(data):
         return
     current_order = get_current_order()
     current_team = current_order[draft_state["current_pick"]]
+    normalized_current_team = normalize_team_name(current_team)
     assigned_team = get_assigned_team(draft_state["current_round"], current_team)
-    if session['team'] != assigned_team and not session.get('is_admin', False):
+    normalized_assigned_team = normalize_team_name(assigned_team)
+    if normalize_team_name(session['team']) != normalized_assigned_team and not session.get('is_admin', False):
         emit('error', {'msg': 'Not your turn'})
         return
 
@@ -350,13 +382,13 @@ def handle_pick(data):
     player = next((p for p in draft_state["available_players"] if p['name'] == player_name), None)
     if player:
         draft_state["available_players"].remove(player)
-        draft_state["rosters"][assigned_team].append(player)
+        draft_state["rosters"][normalized_assigned_team].append(player)
         overall_pick = ((draft_state["current_round"] - 1) * len(draft_state["teams"])) + draft_state["current_pick"] + 1
         draft_state["draft_history"].append({
             "round": draft_state["current_round"],
             "overall_pick": overall_pick,
-            "display_team": current_team,
-            "roster_team": assigned_team,
+            "display_team": normalized_current_team,
+            "roster_team": normalized_assigned_team,
             "player": player,
             "time_taken": time.time() - draft_state["turn_start_time"]
         })

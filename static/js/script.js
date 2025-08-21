@@ -1,4 +1,3 @@
-
 const socket = io();
 
 let myTeam = null;
@@ -10,6 +9,10 @@ let pendingSpotAssignment = null; // Store round and original_team for assignmen
 window.addEventListener('load', () => {
     localStorage.clear();
 });
+
+function normalizeTeamName(teamName) {
+    return teamName ? teamName.toLowerCase() : '';
+}
 
 function joinDraft() {
     const joinType = document.querySelector('input[name="join-type"]:checked')?.value;
@@ -261,7 +264,8 @@ function exportRosters() {
     if (!state) return;
     let csvContent = 'Team,Player Name,Position,Team,Bye Week\n';
     state.teams.forEach(team => {
-        state.rosters[team].forEach(player => {
+        const normalizedTeam = normalizeTeamName(team);
+        state.rosters[normalizedTeam].forEach(player => {
             csvContent += `${team},${player.name},${player.pos},${player.team},${player.bye}\n`;
         });
     });
@@ -317,20 +321,20 @@ socket.on('update_draft', (state) => {
         manualTeamSelect.innerHTML = '';
         const order = state.current_round <= 2 ? state.teams : (state.current_round % 2 === 1 ? state.teams.slice().reverse() : state.teams);
         const currentTeam = state.started && state.current_round <= state.num_rounds ? 
-            (state.assigned_spots[state.current_round]?.[order[state.current_pick]] || order[state.current_pick]) : 
+            (state.assigned_spots[state.current_round]?.[normalizeTeamName(order[state.current_pick])] || order[state.current_pick]) : 
             (state.teams[0] || 'Draft Over');
         state.teams.forEach(team => {
             const opt = document.createElement('option');
             opt.value = team;
             opt.text = team;
-            if (team === currentTeam) {
+            if (normalizeTeamName(team) === normalizeTeamName(currentTeam)) {
                 opt.selected = true;
             }
             teamSelect.appendChild(opt);
             const manualOpt = document.createElement('option');
             manualOpt.value = team;
             manualOpt.text = team;
-            if (team === currentTeam) {
+            if (normalizeTeamName(team) === normalizeTeamName(currentTeam)) {
                 manualOpt.selected = true;
             }
             manualTeamSelect.appendChild(manualOpt);
@@ -384,7 +388,7 @@ socket.on('update_draft', (state) => {
     document.getElementById('current-round-board').textContent = state.current_round;
     const order = state.current_round <= 2 ? state.teams : (state.current_round % 2 === 1 ? state.teams.slice().reverse() : state.teams);
     const currentTeam = state.started && state.current_round <= state.num_rounds ? 
-        (state.assigned_spots[state.current_round]?.[order[state.current_pick]] || order[state.current_pick]) : 
+        (state.assigned_spots[state.current_round]?.[normalizeTeamName(order[state.current_pick])] || order[state.current_pick]) : 
         'Draft Over';
     document.getElementById('current-team-live').textContent = currentTeam;
     document.getElementById('current-team-board').textContent = currentTeam;
@@ -408,13 +412,13 @@ socket.on('update_draft', (state) => {
         select.appendChild(opt);
     });
 
-    document.getElementById('pick-btn').style.display = ((myTeam === currentTeam || isAdmin) && state.started && !state.paused) ? 'block' : 'none';
+    document.getElementById('pick-btn').style.display = ((normalizeTeamName(myTeam) === normalizeTeamName(currentTeam) || isAdmin) && state.started && !state.paused) ? 'block' : 'none';
     document.getElementById('queue-btn').style.display = (!isSpectator && state.current_round <= state.num_rounds) ? 'block' : 'none';
     document.getElementById('player-queue').style.display = (!isSpectator) ? 'block' : 'none';
 
     const queueList = document.getElementById('queue-list');
     queueList.innerHTML = '';
-    const queue = state.player_queues[myTeam] || [];
+    const queue = state.player_queues[normalizeTeamName(myTeam)] || [];
     const draftedPlayers = new Set(state.draft_history.map(p => p.player.name));
     queue.forEach(p => {
         if (draftedPlayers.has(p.name)) {
@@ -427,7 +431,7 @@ socket.on('update_draft', (state) => {
         removeBtn.textContent = 'Remove';
         removeBtn.onclick = () => removeFromQueue(p.name);
         li.appendChild(removeBtn);
-        const isMyTurn = myTeam === currentTeam && state.started && !state.paused;
+        const isMyTurn = normalizeTeamName(myTeam) === normalizeTeamName(currentTeam) && state.started && !state.paused;
         if (isMyTurn) {
             const draftBtn = document.createElement('button');
             draftBtn.textContent = 'Draft';
@@ -441,18 +445,20 @@ socket.on('update_draft', (state) => {
     const rostersDiv = document.getElementById('rosters');
     rostersDiv.innerHTML = '';
     state.teams.forEach(team => {
+        const normalizedTeam = normalizeTeamName(team);
         const div = document.createElement('div');
-        div.innerHTML = `<h4>${team}</h4><ul>${state.rosters[team].map(p => `<li>${p.name} (${p.pos}, ${p.team})</li>`).join('')}</ul>`;
+        div.innerHTML = `<h4>${team}</h4><ul>${state.rosters[normalizedTeam].map(p => `<li>${p.name} (${p.pos}, ${p.team})</li>`).join('')}</ul>`;
         rostersDiv.appendChild(div);
     });
 
     const table = document.getElementById('draft-grid');
     const thead = table.querySelector('thead tr');
-    thead.innerHTML = '<th>Round</th>'; // Reset headers
+    thead.innerHTML = '<th>Round</th>';
     state.teams.forEach(team => {
         const th = document.createElement('th');
+        const normalizedTeam = normalizeTeamName(team);
         const totalTime = state.draft_history
-            .filter(p => p.roster_team === team)
+            .filter(p => p.roster_team === normalizedTeam)
             .reduce((sum, p) => sum + (p.time_taken || 0), 0);
         th.innerHTML = `${team}<br><span class="total-time">${formatTime(totalTime)}</span>`;
         thead.appendChild(th);
@@ -467,10 +473,11 @@ socket.on('update_draft', (state) => {
         tr.appendChild(roundTd);
 
         state.teams.forEach(team => {
+            const normalizedTeam = normalizeTeamName(team);
             const td = document.createElement('td');
             td.dataset.round = round;
             td.dataset.team = team;
-            const pick = state.draft_history.find(p => p.round === round && p.display_team === team);
+            const pick = state.draft_history.find(p => p.round === round && p.display_team === normalizedTeam);
             if (pick && pick.player) {
                 const player = pick.player;
                 const nameParts = player.name.split(' ');
@@ -479,17 +486,17 @@ socket.on('update_draft', (state) => {
                 td.innerHTML = `${firstName}<br>${lastName}<br>(${player.pos}, ${player.team}) - Bye: ${player.bye}`;
                 const posClass = `pos-${player.pos.toLowerCase()}`;
                 td.classList.add(posClass);
-                const assigned_team = state.assigned_spots[round]?.[team];
-                if (assigned_team && assigned_team !== team) {
+                const assigned_team = state.assigned_spots[round]?.[normalizedTeam];
+                if (assigned_team && assigned_team !== normalizedTeam) {
                     td.classList.add('assigned');
-                    td.innerHTML += `<span class="assigned-text">Traded to ${assigned_team}</span>`;
+                    td.innerHTML += `<span class="assigned-text">Traded to ${get_original_team_name(assigned_team)}</span>`;
                 }
             } else {
                 td.innerHTML = '';
-                const assigned_team = state.assigned_spots[round]?.[team];
-                if (assigned_team && assigned_team !== team) {
+                const assigned_team = state.assigned_spots[round]?.[normalizedTeam];
+                if (assigned_team && assigned_team !== normalizedTeam) {
                     td.classList.add('assigned');
-                    td.innerHTML = `<span class="assigned-text">Traded to ${assigned_team}</span>`;
+                    td.innerHTML = `<span class="assigned-text">Traded to ${get_original_team_name(assigned_team)}</span>`;
                 }
             }
             if (isAdmin && !pick && (round > state.current_round || (round === state.current_round && order.indexOf(team) >= state.current_pick))) {
