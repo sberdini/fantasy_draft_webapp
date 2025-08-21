@@ -458,7 +458,7 @@ socket.on('update_draft', (state) => {
         const th = document.createElement('th');
         const normalizedTeam = normalizeTeamName(team);
         const totalTime = state.draft_history
-            .filter(p => p.roster_team === normalizedTeam)
+            .filter(p => normalizeTeamName(p.roster_team) === normalizedTeam)
             .reduce((sum, p) => sum + (p.time_taken || 0), 0);
         th.innerHTML = `${team}<br><span class="total-time">${formatTime(totalTime)}</span>`;
         thead.appendChild(th);
@@ -473,11 +473,10 @@ socket.on('update_draft', (state) => {
         tr.appendChild(roundTd);
 
         state.teams.forEach(team => {
-            const normalizedTeam = normalizeTeamName(team);
             const td = document.createElement('td');
             td.dataset.round = round;
             td.dataset.team = team;
-            const pick = state.draft_history.find(p => p.round === round && p.display_team === normalizedTeam);
+            const pick = state.draft_history.find(p => p.round === round && p.display_team === team);
             if (pick && pick.player) {
                 const player = pick.player;
                 const nameParts = player.name.split(' ');
@@ -486,17 +485,17 @@ socket.on('update_draft', (state) => {
                 td.innerHTML = `${firstName}<br>${lastName}<br>(${player.pos}, ${player.team}) - Bye: ${player.bye}`;
                 const posClass = `pos-${player.pos.toLowerCase()}`;
                 td.classList.add(posClass);
-                const assigned_team = state.assigned_spots[round]?.[normalizedTeam];
-                if (assigned_team && assigned_team !== normalizedTeam) {
+                const assigned_team = state.assigned_spots[round]?.[normalizeTeamName(team)];
+                if (assigned_team && assigned_team !== team) {
                     td.classList.add('assigned');
-                    td.innerHTML += `<span class="assigned-text">Traded to ${get_original_team_name(assigned_team)}</span>`;
+                    td.innerHTML += `<span class="assigned-text">Traded to ${assigned_team}</span>`;
                 }
             } else {
                 td.innerHTML = '';
-                const assigned_team = state.assigned_spots[round]?.[normalizedTeam];
-                if (assigned_team && assigned_team !== normalizedTeam) {
+                const assigned_team = state.assigned_spots[round]?.[normalizeTeamName(team)];
+                if (assigned_team && assigned_team !== team) {
                     td.classList.add('assigned');
-                    td.innerHTML = `<span class="assigned-text">Traded to ${get_original_team_name(assigned_team)}</span>`;
+                    td.innerHTML = `<span class="assigned-text">Traded to ${assigned_team}</span>`;
                 }
             }
             if (isAdmin && !pick && (round > state.current_round || (round === state.current_round && order.indexOf(team) >= state.current_pick))) {
