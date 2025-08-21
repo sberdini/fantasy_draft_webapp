@@ -1620,8 +1620,8 @@ players = [
     "rank": 232,
     "name": "Devaughn Vele",
     "pos": "WR",
-    "team": "DEN",
-    "bye": 12
+    "team": "NO",
+    "bye": 11
   },
   {
     "rank": 233,
